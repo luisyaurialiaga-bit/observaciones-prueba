@@ -37,7 +37,6 @@ def obtener_columna_observacion(conn):
         cursor.execute("PRAGMA table_info(observaciones)")
         columnas = [info[1] for info in cursor.fetchall()]
         
-        # Buscar variantes comunes del encabezado
         for col in ["Observación", "OBSERVACION", "Observacion", "observacion"]:
             if col in columnas:
                 return col
@@ -45,65 +44,23 @@ def obtener_columna_observacion(conn):
     except Exception:
         return "Observacion"
 
-def construir_base_datos():
-    """Lee el Excel y construye SQLite directamente."""
+def construir_base_rapida():
+    """Construcción ultrarrápida (solo SQLite) para evitar sobrecargar la CPU de la nube."""
     if not os.path.exists(EXCEL_PATH):
-        st.error(f"No se encontró el archivo Excel: {EXCEL_PATH}. Verifica que esté en la raíz del repositorio.")
+        st.error(f"No se encontró el archivo Excel: {EXCEL_PATH}.")
         return False
     
-    st.info("Leyendo archivo Excel y generando base de datos SQLite...")
+    # Cargar Excel y guardar SQLite directamente (tarda < 2 segundos)
     df = pd.read_excel(EXCEL_PATH)
-    
     conn = obtener_conexion_sql()
     df.to_sql("observaciones", conn, if_exists="replace", index=False)
     conn.close()
-    
-    # Intento de generación de ChromaDB (si las librerías vectoriales responden correctamente)
-    try:
-        from langchain_community.vectorstores import Chroma
-        from langchain_community.embeddings import FastEmbedEmbeddings
-        from langchain_core.documents import Document
-        
-        st.info("Generando base vectorial ChromaDB...")
-        docs = []
-        col_obs = None
-        for col in ["Observación", "OBSERVACION", "Observacion"]:
-            if col in df.columns:
-                col_obs = col
-                break
-        if not col_obs and len(df.columns) > 0:
-            col_obs = df.columns[0]
-
-        for idx, row in df.iterrows():
-            obs = str(row.get(col_obs, '')).strip()
-            if obs and obs.lower() != 'nan':
-                exp = str(row.get('Expediente', 'Sin Expediente')).strip()
-                coord = str(row.get('Coordinador', 'Sin Coordinador')).strip()
-                clasif = str(row.get('Especialidad Final', 'General')).strip()
-                
-                doc = Document(
-                    page_content=obs,
-                    metadata={
-                        "expediente": exp,
-                        "evaluador": coord,
-                        "clasificacion": clasif
-                    }
-                )
-                docs.append(doc)
-        
-        if docs:
-            embeddings = FastEmbedEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-            Chroma.from_documents(docs, embeddings, persist_directory=CHROMA_PATH)
-    except Exception as e:
-        st.warning(f"Nota: Base SQLite creada correctamente. (Aviso vectorial: {e})")
-        
     return True
 
-# 1. VERIFICACIÓN Y CREACIÓN DE BASE DE DATOS
+# 1. VERIFICACIÓN Y CREACIÓN ULTRARRÁPIDA
 if not tabla_existe("observaciones"):
-    with st.spinner("⏳ Generando base de datos inicial..."):
-        exito = construir_base_datos()
-        if exito:
+    with st.spinner("⚡ Construyendo base de datos ultrarrápida..."):
+        if construir_base_rapida():
             st.rerun()
 
 # Encabezado Principal
@@ -111,10 +68,10 @@ st.title("🛡️ Sistema de Control de Calidad & Inteligencia ITS SENACE")
 st.caption("Matriz de Observaciones Clasificadas - Base Histórica")
 
 # Navegación por pestañas
-tab1, tab2, tab3 = st.tabs(["🔍 Búsqueda Semántica", "📋 Consulta General SQL", "📊 Dashboard & Métricas"])
+tab1, tab2, tab3 = st.tabs(["🔍 Búsqueda de Observaciones", "📋 Consulta General SQL", "📊 Dashboard & Métricas"])
 
 # ---------------------------------------------------------
-# PESTAÑA 1: BÚSQUEDA SEMÁNTICA
+# PESTAÑA 1: BÚSQUEDA DE OBSERVACIONES
 # ---------------------------------------------------------
 with tab1:
     st.header("Búsqueda Avanzada de Observaciones")
@@ -128,7 +85,7 @@ with tab1:
     if tabla_existe("observaciones"):
         conn = obtener_conexion_sql()
         try:
-            evaluadores_df = pd.read_sql_query("SELECT DISTINCT Coordinador FROM observaciones WHERE Coordinador IS NOT NULL AND Coordinador != '' ORDER BY Coordinador", conn)
+            evaluadores_df = pd.read_sql_query('SELECT DISTINCT "Coordinador" FROM observaciones WHERE "Coordinador" IS NOT NULL AND "Coordinador" != "" ORDER BY "Coordinador"', conn)
             lista_evaluadores += evaluadores_df['Coordinador'].tolist()
         except Exception:
             pass
@@ -140,11 +97,37 @@ with tab1:
 
     if st.button("Buscar Observaciones", type="primary"):
         if query.strip():
-            if not os.path.exists(CHROMA_PATH):
-                # Búsqueda SQL de respaldo con detección dinámica de columna y parametrización segura
-                conn = obtener_conexion_sql()
-                col_obs = obtener_columna_observacion(conn)
-                
+            conn = obtener_conexion_sql()
+            col_obs = obtener_columna_observacion(conn)
+            
+            # Intento de búsqueda semántica con Chroma si existe el directorio
+            busqueda_semantica_exitosa = False
+            if os.path.exists(CHROMA_PATH):
+                try:
+                    from langchain_community.vectorstores import Chroma
+                    from langchain_community.embeddings import FastEmbedEmbeddings
+                    
+                    with st.spinner("Buscando con Inteligencia Vectorial..."):
+                        embeddings = FastEmbedEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+                        vectorstore = Chroma(persist_directory=CHROMA_PATH, embedding_function=embeddings)
+                        
+                        search_kwargs = {"k": top_k}
+                        if evaluador_filtro != "Todos":
+                            search_kwargs["filter"] = {"evaluador": evaluador_filtro}
+                        
+                        results = vectorstore.similarity_search(query, **search_kwargs)
+                        if results:
+                            st.success(f"Se encontraron {len(results)} observaciones semánticamente relevantes:")
+                            for idx, doc in enumerate(results, 1):
+                                with st.expander(f"📌 Resultado #{idx} - Expediente: {doc.metadata.get('expediente', 'N/A')} | Evaluador: {doc.metadata.get('evaluador', 'N/A')}"):
+                                    st.markdown(f"**Observación:**\n{doc.page_content}")
+                                    st.caption(f"Clasificación / Tema: {doc.metadata.get('clasificacion', 'Sin clasificación')}")
+                            busqueda_semantica_exitosa = True
+                except Exception:
+                    busqueda_semantica_exitosa = False
+            
+            # Fallback a búsqueda rápida mediante consulta SQL (coincidencia de texto)
+            if not busqueda_semantica_exitosa:
                 query_sql = f'SELECT * FROM observaciones WHERE "{col_obs}" LIKE ?'
                 params = [f"%{query.strip()}%"]
                 
@@ -159,35 +142,6 @@ with tab1:
                 
                 st.success(f"Se encontraron {len(df_res)} observaciones relacionadas:")
                 st.dataframe(df_res, use_container_width=True)
-            else:
-                with st.spinner("Buscando las observaciones más relevantes..."):
-                    try:
-                        from langchain_community.vectorstores import Chroma
-                        from langchain_community.embeddings import FastEmbedEmbeddings
-                        
-                        embeddings = FastEmbedEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-                        vectorstore = Chroma(persist_directory=CHROMA_PATH, embedding_function=embeddings)
-                        
-                        search_kwargs = {"k": top_k}
-                        if evaluador_filtro != "Todos":
-                            search_kwargs["filter"] = {"evaluador": evaluador_filtro}
-                        
-                        results = vectorstore.similarity_search(query, **search_kwargs)
-                        st.success(f"Se encontraron {len(results)} observaciones relevantes:")
-                        
-                        for idx, doc in enumerate(results, 1):
-                            with st.expander(f"📌 Resultado #{idx} - Expediente: {doc.metadata.get('expediente', 'N/A')} | Evaluador: {doc.metadata.get('evaluador', 'N/A')}"):
-                                st.markdown(f"**Observación:**\n{doc.page_content}")
-                                st.caption(f"Clasificación / Tema: {doc.metadata.get('clasificacion', 'Sin clasificación')}")
-                    except Exception as e:
-                        # Fallback a SQL si la búsqueda vectorial falla puntualmente
-                        conn = obtener_conexion_sql()
-                        col_obs = obtener_columna_observacion(conn)
-                        query_sql = f'SELECT * FROM observaciones WHERE "{col_obs}" LIKE ? LIMIT {top_k}'
-                        df_res = pd.read_sql_query(query_sql, conn, params=[f"%{query.strip()}%"])
-                        conn.close()
-                        st.success(f"Se encontraron {len(df_res)} observaciones por coincidencia directa de texto:")
-                        st.dataframe(df_res, use_container_width=True)
         else:
             st.warning("Por favor ingrese un texto de consulta.")
 
