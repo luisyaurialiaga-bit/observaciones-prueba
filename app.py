@@ -45,21 +45,19 @@ def obtener_columna_observacion(conn):
         return "Observacion"
 
 def construir_base_rapida():
-    """Construcción ultrarrápida (solo SQLite) para evitar sobrecargar la CPU de la nube."""
     if not os.path.exists(EXCEL_PATH):
         st.error(f"No se encontró el archivo Excel: {EXCEL_PATH}.")
         return False
     
-    # Cargar Excel y guardar SQLite directamente (tarda < 2 segundos)
     df = pd.read_excel(EXCEL_PATH)
     conn = obtener_conexion_sql()
     df.to_sql("observaciones", conn, if_exists="replace", index=False)
     conn.close()
     return True
 
-# 1. VERIFICACIÓN Y CREACIÓN ULTRARRÁPIDA
+# 1. VERIFICACIÓN Y CREACIÓN INICIAL
 if not tabla_existe("observaciones"):
-    with st.spinner("⚡ Construyendo base de datos ultrarrápida..."):
+    with st.spinner("⚡ Cargando datos del sistema..."):
         if construir_base_rapida():
             st.rerun()
 
@@ -100,14 +98,15 @@ with tab1:
             conn = obtener_conexion_sql()
             col_obs = obtener_columna_observacion(conn)
             
-            # Intento de búsqueda semántica con Chroma si existe el directorio
             busqueda_semantica_exitosa = False
+            
+            # 1. Intento de búsqueda vectorial si ChromaDB está listo
             if os.path.exists(CHROMA_PATH):
                 try:
                     from langchain_community.vectorstores import Chroma
                     from langchain_community.embeddings import FastEmbedEmbeddings
                     
-                    with st.spinner("Buscando con Inteligencia Vectorial..."):
+                    with st.spinner("Buscando observaciones relevantes..."):
                         embeddings = FastEmbedEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
                         vectorstore = Chroma(persist_directory=CHROMA_PATH, embedding_function=embeddings)
                         
@@ -117,16 +116,19 @@ with tab1:
                         
                         results = vectorstore.similarity_search(query, **search_kwargs)
                         if results:
-                            st.success(f"Se encontraron {len(results)} observaciones semánticamente relevantes:")
+                            st.success(f"Se encontraron {len(results)} observaciones relevantes:")
                             for idx, doc in enumerate(results, 1):
-                                with st.expander(f"📌 Resultado #{idx} - Expediente: {doc.metadata.get('expediente', 'N/A')} | Evaluador: {doc.metadata.get('evaluador', 'N/A')}"):
-                                    st.markdown(f"**Observación:**\n{doc.page_content}")
-                                    st.caption(f"Clasificación / Tema: {doc.metadata.get('clasificacion', 'Sin clasificación')}")
+                                exp = doc.metadata.get('expediente', 'N/A')
+                                coord = doc.metadata.get('evaluador', 'N/A')
+                                clasif = doc.metadata.get('clasificacion', 'General')
+                                with st.expander(f"📌 Resultado #{idx} | Expediente: {exp} | Evaluador: {coord}"):
+                                    st.markdown(f"**Observación:**\n\n{doc.page_content}")
+                                    st.caption(f"Especialidad / Tema: {clasif}")
                             busqueda_semantica_exitosa = True
                 except Exception:
                     busqueda_semantica_exitosa = False
             
-            # Fallback a búsqueda rápida mediante consulta SQL (coincidencia de texto)
+            # 2. Formato estructurado por tarjetas desplegables mediante consulta SQL
             if not busqueda_semantica_exitosa:
                 query_sql = f'SELECT * FROM observaciones WHERE "{col_obs}" LIKE ?'
                 params = [f"%{query.strip()}%"]
@@ -140,8 +142,23 @@ with tab1:
                 df_res = pd.read_sql_query(query_sql, conn, params=params)
                 conn.close()
                 
-                st.success(f"Se encontraron {len(df_res)} observaciones relacionadas:")
-                st.dataframe(df_res, use_container_width=True)
+                if not df_res.empty:
+                    st.success(f"Se encontraron {len(df_res)} observaciones relacionadas:")
+                    for idx, row in df_res.iterrows():
+                        num_res = idx + 1
+                        exp = row.get('Expediente', 'Sin Expediente')
+                        coord = row.get('Coordinador', row.get('Especialista', 'N/A'))
+                        proyecto = row.get('Titulo Proyecto', row.get('Proyecto', 'N/A'))
+                        empresa = row.get('Empresa', 'N/A')
+                        obs_texto = row.get(col_obs, 'Sin detalle')
+                        
+                        with st.expander(f"📌 Resultado #{num_res} | Expediente: {exp} | Evaluador: {coord}"):
+                            st.markdown(f"**Proyecto:** {proyecto}")
+                            st.markdown(f"**Empresa:** {empresa}")
+                            st.markdown("---")
+                            st.markdown(f"**Observación:**\n\n{obs_texto}")
+                else:
+                    st.info("No se encontraron observaciones que coincidan con la búsqueda.")
         else:
             st.warning("Por favor ingrese un texto de consulta.")
 
