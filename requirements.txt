@@ -3,5 +3,6 @@ pandas
 openpyxl
 langchain
 langchain-community
+langchain-core
 chromadb
 fastembed
