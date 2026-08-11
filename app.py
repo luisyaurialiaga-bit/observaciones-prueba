@@ -17,22 +17,35 @@ DB_SQL_PATH = "datos_its.db"
 CHROMA_PATH = "chroma_db"
 
 # 1. GENERACIÓN AUTOMÁTICA DE BASE DE DATOS EN LA NUBE
-if not os.path.exists(DB_SQL_PATH):
-    if os.path.exists("regenerar_base.py"):
-        with st.spinner("⚡ Inicializando base de datos en la nube por primera vez... Esto tomará cerca de un minuto."):
-            subprocess.run(["python", "regenerar_base.py"])
-    else:
-        st.error("⚠️ No se encontró la base de datos 'datos_its.db' ni el script 'regenerar_base.py'.")
-        st.stop()
+def verificar_o_crear_bd():
+    if not os.path.exists(DB_SQL_PATH):
+        if os.path.exists("regenerar_base.py"):
+            with st.spinner("⚡ Inicializando base de datos en la nube... Esto puede tomar un minuto."):
+                subprocess.run(["python", "regenerar_base.py"])
+        else:
+            st.error("⚠️ No se encontró el script 'regenerar_base.py'.")
+            st.stop()
 
-# 2. CARGA DE BASE VECTORIAL Y CONEXIONES
-@st.cache_resource
-def cargar_vectorstore():
-    embeddings = FastEmbedEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-    return Chroma(persist_directory=CHROMA_PATH, embedding_function=embeddings)
+verificar_o_crear_bd()
 
 def obtener_conexion_sql():
     return sqlite3.connect(DB_SQL_PATH)
+
+# Verificar si la tabla 'observaciones' existe
+def tabla_existe(nombre_tabla):
+    conn = obtener_conexion_sql()
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (nombre_tabla,))
+    existe = cursor.fetchone() is not None
+    conn.close()
+    return existe
+
+# Si la tabla no existe tras ejecutar el script, forzar regeneración limpia
+if not tabla_existe("observaciones"):
+    if os.path.exists(DB_SQL_PATH):
+        os.remove(DB_SQL_PATH)
+    with st.spinner("🔄 Generando tabla 'observaciones' desde el archivo Excel..."):
+        subprocess.run(["python", "regenerar_base.py"])
 
 # Título Principal
 st.title("🛡️ Sistema de Control de Calidad & Inteligencia ITS SENACE")
@@ -53,35 +66,40 @@ with tab1:
         top_k = st.slider("Cantidad de resultados:", min_value=5, max_value=50, value=10)
     
     # Obtener evaluadores para filtro
-    conn = obtener_conexion_sql()
-    try:
-        evaluadores_df = pd.read_sql_query("SELECT DISTINCT Coordinador FROM observaciones WHERE Coordinador IS NOT NULL AND Coordinador != '' ORDER BY Coordinador", conn)
-        lista_evaluadores = ["Todos"] + evaluadores_df['Coordinador'].tolist()
-    except:
-        lista_evaluadores = ["Todos"]
-    conn.close()
+    lista_evaluadores = ["Todos"]
+    if tabla_existe("observaciones"):
+        conn = obtener_conexion_sql()
+        try:
+            evaluadores_df = pd.read_sql_query("SELECT DISTINCT Coordinador FROM observaciones WHERE Coordinador IS NOT NULL AND Coordinador != '' ORDER BY Coordinador", conn)
+            lista_evaluadores += evaluadores_df['Coordinador'].tolist()
+        except Exception:
+            pass
+        finally:
+            conn.close()
 
     with col2:
         evaluador_filtro = st.selectbox("Filtrar por Evaluador/Especialista:", lista_evaluadores)
 
     if st.button("Buscar Observaciones", type="primary"):
         if query.strip():
-            with st.spinner("Buscando las observaciones más relevantes..."):
-                vectorstore = cargar_vectorstore()
-                
-                # Configurar filtro metadata si aplica
-                search_kwargs = {"k": top_k}
-                if evaluador_filtro != "Todos":
-                    search_kwargs["filter"] = {"evaluador": evaluador_filtro}
-                
-                results = vectorstore.similarity_search(query, **search_kwargs)
-                
-                st.success(f"Se encontraron {len(results)} observaciones relevantes:")
-                
-                for idx, doc in enumerate(results, 1):
-                    with st.expander(f"📌 Resultado #{idx} - Expediente: {doc.metadata.get('expediente', 'N/A')} | Evaluador: {doc.metadata.get('evaluador', 'N/A')}"):
-                        st.markdown(f"**Observación:**\n{doc.page_content}")
-                        st.caption(f"Clasificación / Tema: {doc.metadata.get('clasificacion', 'Sin clasificación')}")
+            if not os.path.exists(CHROMA_PATH):
+                st.error("La base de datos vectorial ChromaDB aún no se ha generado en el servidor.")
+            else:
+                with st.spinner("Buscando las observaciones más relevantes..."):
+                    embeddings = FastEmbedEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+                    vectorstore = Chroma(persist_directory=CHROMA_PATH, embedding_function=embeddings)
+                    
+                    search_kwargs = {"k": top_k}
+                    if evaluador_filtro != "Todos":
+                        search_kwargs["filter"] = {"evaluador": evaluador_filtro}
+                    
+                    results = vectorstore.similarity_search(query, **search_kwargs)
+                    st.success(f"Se encontraron {len(results)} observaciones relevantes:")
+                    
+                    for idx, doc in enumerate(results, 1):
+                        with st.expander(f"📌 Resultado #{idx} - Expediente: {doc.metadata.get('expediente', 'N/A')} | Evaluador: {doc.metadata.get('evaluador', 'N/A')}"):
+                            st.markdown(f"**Observación:**\n{doc.page_content}")
+                            st.caption(f"Clasificación / Tema: {doc.metadata.get('clasificacion', 'Sin clasificación')}")
         else:
             st.warning("Por favor ingrese un texto de consulta.")
 
@@ -90,24 +108,32 @@ with tab1:
 # ---------------------------------------------------------
 with tab2:
     st.header("Explorador de la Base de Datos")
-    conn = obtener_conexion_sql()
-    df_preview = pd.read_sql_query("SELECT * FROM observaciones LIMIT 100", conn)
-    conn.close()
-    
-    st.write("Mostrando los primeros 100 registros:")
-    st.dataframe(df_preview, width="stretch")
+    if tabla_existe("observaciones"):
+        conn = obtener_conexion_sql()
+        df_preview = pd.read_sql_query("SELECT * FROM observaciones LIMIT 100", conn)
+        conn.close()
+        st.write("Mostrando los primeros 100 registros:")
+        st.dataframe(df_preview, use_container_width=True)
+    else:
+        st.info("La tabla 'observaciones' aún no está construida en SQLite.")
 
 # ---------------------------------------------------------
 # PESTAÑA 3: DASHBOARD
 # ---------------------------------------------------------
 with tab3:
     st.header("Estadísticas y Carga de Trabajo")
-    conn = obtener_conexion_sql()
-    df_metrics = pd.read_sql_query("SELECT Coordinador, COUNT(*) as Cantidad FROM observaciones GROUP BY Coordinador ORDER BY Cantidad DESC LIMIT 15", conn)
-    conn.close()
-    
-    if not df_metrics.empty:
-        st.subheader("👥 Carga de Trabajo por Coordinador / Líder")
-        st.bar_chart(df_metrics.set_index("Coordinador"))
+    if tabla_existe("observaciones"):
+        conn = obtener_conexion_sql()
+        try:
+            df_metrics = pd.read_sql_query("SELECT Coordinador, COUNT(*) as Cantidad FROM observaciones GROUP BY Coordinador ORDER BY Cantidad DESC LIMIT 15", conn)
+            if not df_metrics.empty:
+                st.subheader("👥 Carga de Trabajo por Coordinador / Líder")
+                st.bar_chart(df_metrics.set_index("Coordinador"))
+            else:
+                st.info("No hay registros disponibles para calcular las métricas.")
+        except Exception as e:
+            st.error(f"Error al calcular métricas: {e}")
+        finally:
+            conn.close()
     else:
-        st.info("No hay datos para mostrar en las métricas.")
+        st.info("La tabla de observaciones aún no está disponible.")
