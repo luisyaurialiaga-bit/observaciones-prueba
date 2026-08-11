@@ -30,8 +30,23 @@ def tabla_existe(nombre_tabla):
     except Exception:
         return False
 
+def obtener_columna_observacion(conn):
+    """Detecta dinámicamente cómo se llama la columna de texto de observación."""
+    try:
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(observaciones)")
+        columnas = [info[1] for info in cursor.fetchall()]
+        
+        # Buscar variantes comunes del encabezado
+        for col in ["Observación", "OBSERVACION", "Observacion", "observacion"]:
+            if col in columnas:
+                return col
+        return columnas[0] if columnas else "Observacion"
+    except Exception:
+        return "Observacion"
+
 def construir_base_datos():
-    """Lee el Excel y construye SQLite directamente sin subprocesos."""
+    """Lee el Excel y construye SQLite directamente."""
     if not os.path.exists(EXCEL_PATH):
         st.error(f"No se encontró el archivo Excel: {EXCEL_PATH}. Verifica que esté en la raíz del repositorio.")
         return False
@@ -43,7 +58,7 @@ def construir_base_datos():
     df.to_sql("observaciones", conn, if_exists="replace", index=False)
     conn.close()
     
-    # Opcional: Generar embeddings si las librerías vectoriales están disponibles
+    # Intento de generación de ChromaDB (si las librerías vectoriales responden correctamente)
     try:
         from langchain_community.vectorstores import Chroma
         from langchain_community.embeddings import FastEmbedEmbeddings
@@ -51,8 +66,16 @@ def construir_base_datos():
         
         st.info("Generando base vectorial ChromaDB...")
         docs = []
+        col_obs = None
+        for col in ["Observación", "OBSERVACION", "Observacion"]:
+            if col in df.columns:
+                col_obs = col
+                break
+        if not col_obs and len(df.columns) > 0:
+            col_obs = df.columns[0]
+
         for idx, row in df.iterrows():
-            obs = str(row.get('Observación', '') or row.get('OBSERVACION', '')).strip()
+            obs = str(row.get(col_obs, '')).strip()
             if obs and obs.lower() != 'nan':
                 exp = str(row.get('Expediente', 'Sin Expediente')).strip()
                 coord = str(row.get('Coordinador', 'Sin Coordinador')).strip()
@@ -118,11 +141,23 @@ with tab1:
     if st.button("Buscar Observaciones", type="primary"):
         if query.strip():
             if not os.path.exists(CHROMA_PATH):
-                # Búsqueda por coincidencia de texto en SQL como fallback si ChromaDB aún no está listo
+                # Búsqueda SQL de respaldo con detección dinámica de columna y parametrización segura
                 conn = obtener_conexion_sql()
-                df_res = pd.read_sql_query(f"SELECT * FROM observaciones WHERE Observación LIKE '%{query}%' LIMIT {top_k}", conn)
+                col_obs = obtener_columna_observacion(conn)
+                
+                query_sql = f'SELECT * FROM observaciones WHERE "{col_obs}" LIKE ?'
+                params = [f"%{query.strip()}%"]
+                
+                if evaluador_filtro != "Todos":
+                    query_sql += ' AND "Coordinador" = ?'
+                    params.append(evaluador_filtro)
+                
+                query_sql += f" LIMIT {top_k}"
+                
+                df_res = pd.read_sql_query(query_sql, conn, params=params)
                 conn.close()
-                st.success(f"Se encontraron {len(df_res)} observaciones por texto:")
+                
+                st.success(f"Se encontraron {len(df_res)} observaciones relacionadas:")
                 st.dataframe(df_res, use_container_width=True)
             else:
                 with st.spinner("Buscando las observaciones más relevantes..."):
@@ -145,7 +180,14 @@ with tab1:
                                 st.markdown(f"**Observación:**\n{doc.page_content}")
                                 st.caption(f"Clasificación / Tema: {doc.metadata.get('clasificacion', 'Sin clasificación')}")
                     except Exception as e:
-                        st.error(f"Error durante la búsqueda semántica: {e}")
+                        # Fallback a SQL si la búsqueda vectorial falla puntualmente
+                        conn = obtener_conexion_sql()
+                        col_obs = obtener_columna_observacion(conn)
+                        query_sql = f'SELECT * FROM observaciones WHERE "{col_obs}" LIKE ? LIMIT {top_k}'
+                        df_res = pd.read_sql_query(query_sql, conn, params=[f"%{query.strip()}%"])
+                        conn.close()
+                        st.success(f"Se encontraron {len(df_res)} observaciones por coincidencia directa de texto:")
+                        st.dataframe(df_res, use_container_width=True)
         else:
             st.warning("Por favor ingrese un texto de consulta.")
 
@@ -171,7 +213,7 @@ with tab3:
     if tabla_existe("observaciones"):
         conn = obtener_conexion_sql()
         try:
-            df_metrics = pd.read_sql_query("SELECT Coordinador, COUNT(*) as Cantidad FROM observaciones GROUP BY Coordinador ORDER BY Cantidad DESC LIMIT 15", conn)
+            df_metrics = pd.read_sql_query('SELECT "Coordinador", COUNT(*) as Cantidad FROM observaciones WHERE "Coordinador" IS NOT NULL AND "Coordinador" != "" GROUP BY "Coordinador" ORDER BY Cantidad DESC LIMIT 15', conn)
             if not df_metrics.empty:
                 st.subheader("👥 Carga de Trabajo por Coordinador / Líder")
                 st.bar_chart(df_metrics.set_index("Coordinador"))
