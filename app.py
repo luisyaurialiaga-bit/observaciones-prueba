@@ -1,11 +1,7 @@
 import streamlit as st
 import sqlite3
 import os
-import sys
-import subprocess
 import pandas as pd
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import FastEmbedEmbeddings
 
 # Configuración de la página
 st.set_page_config(
@@ -15,6 +11,7 @@ st.set_page_config(
 )
 
 DB_SQL_PATH = "datos_its.db"
+EXCEL_PATH = "observaciones_clasificadas_FINAL_v33.xlsx"
 CHROMA_PATH = "chroma_db"
 
 def obtener_conexion_sql():
@@ -33,21 +30,58 @@ def tabla_existe(nombre_tabla):
     except Exception:
         return False
 
-# 1. VERIFICACIÓN Y CREACIÓN AUTOMÁTICA DE BASES DE DATOS
+def construir_base_datos():
+    """Lee el Excel y construye SQLite directamente sin subprocesos."""
+    if not os.path.exists(EXCEL_PATH):
+        st.error(f"No se encontró el archivo Excel: {EXCEL_PATH}. Verifica que esté en la raíz del repositorio.")
+        return False
+    
+    st.info("Leyendo archivo Excel y generando base de datos SQLite...")
+    df = pd.read_excel(EXCEL_PATH)
+    
+    conn = obtener_conexion_sql()
+    df.to_sql("observaciones", conn, if_exists="replace", index=False)
+    conn.close()
+    
+    # Opcional: Generar embeddings si las librerías vectoriales están disponibles
+    try:
+        from langchain_community.vectorstores import Chroma
+        from langchain_community.embeddings import FastEmbedEmbeddings
+        from langchain_core.documents import Document
+        
+        st.info("Generando base vectorial ChromaDB...")
+        docs = []
+        for idx, row in df.iterrows():
+            obs = str(row.get('Observación', '') or row.get('OBSERVACION', '')).strip()
+            if obs and obs.lower() != 'nan':
+                exp = str(row.get('Expediente', 'Sin Expediente')).strip()
+                coord = str(row.get('Coordinador', 'Sin Coordinador')).strip()
+                clasif = str(row.get('Especialidad Final', 'General')).strip()
+                
+                doc = Document(
+                    page_content=obs,
+                    metadata={
+                        "expediente": exp,
+                        "evaluador": coord,
+                        "clasificacion": clasif
+                    }
+                )
+                docs.append(doc)
+        
+        if docs:
+            embeddings = FastEmbedEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+            Chroma.from_documents(docs, embeddings, persist_directory=CHROMA_PATH)
+    except Exception as e:
+        st.warning(f"Nota: Base SQLite creada correctamente. (Aviso vectorial: {e})")
+        
+    return True
+
+# 1. VERIFICACIÓN Y CREACIÓN DE BASE DE DATOS
 if not tabla_existe("observaciones"):
-    with st.spinner("⏳ Generando base de datos SQLite y vectorizándola en la nube... Esto tardará entre 1 y 2 minutos."):
-        if os.path.exists("regenerar_base.py"):
-            # sys.executable fuerza el uso del entorno virtual de Streamlit Cloud
-            res1 = subprocess.run([sys.executable, "regenerar_base.py"], capture_output=True, text=True)
-            if res1.returncode != 0:
-                st.error(f"Error al ejecutar regenerar_base.py: {res1.stderr}")
-        
-        if os.path.exists("actualizar_metadatos_chroma.py"):
-            res2 = subprocess.run([sys.executable, "actualizar_metadatos_chroma.py"], capture_output=True, text=True)
-            if res2.returncode != 0:
-                st.error(f"Error al ejecutar actualizar_metadatos_chroma.py: {res2.stderr}")
-        
-        st.rerun()
+    with st.spinner("⏳ Generando base de datos inicial..."):
+        exito = construir_base_datos()
+        if exito:
+            st.rerun()
 
 # Encabezado Principal
 st.title("🛡️ Sistema de Control de Calidad & Inteligencia ITS SENACE")
@@ -84,23 +118,34 @@ with tab1:
     if st.button("Buscar Observaciones", type="primary"):
         if query.strip():
             if not os.path.exists(CHROMA_PATH):
-                st.error("Base vectorial no encontrada. Por favor recargue la página para iniciar la generación automática.")
+                # Búsqueda por coincidencia de texto en SQL como fallback si ChromaDB aún no está listo
+                conn = obtener_conexion_sql()
+                df_res = pd.read_sql_query(f"SELECT * FROM observaciones WHERE Observación LIKE '%{query}%' LIMIT {top_k}", conn)
+                conn.close()
+                st.success(f"Se encontraron {len(df_res)} observaciones por texto:")
+                st.dataframe(df_res, use_container_width=True)
             else:
                 with st.spinner("Buscando las observaciones más relevantes..."):
-                    embeddings = FastEmbedEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-                    vectorstore = Chroma(persist_directory=CHROMA_PATH, embedding_function=embeddings)
-                    
-                    search_kwargs = {"k": top_k}
-                    if evaluador_filtro != "Todos":
-                        search_kwargs["filter"] = {"evaluador": evaluador_filtro}
-                    
-                    results = vectorstore.similarity_search(query, **search_kwargs)
-                    st.success(f"Se encontraron {len(results)} observaciones relevantes:")
-                    
-                    for idx, doc in enumerate(results, 1):
-                        with st.expander(f"📌 Resultado #{idx} - Expediente: {doc.metadata.get('expediente', 'N/A')} | Evaluador: {doc.metadata.get('evaluador', 'N/A')}"):
-                            st.markdown(f"**Observación:**\n{doc.page_content}")
-                            st.caption(f"Clasificación / Tema: {doc.metadata.get('clasificacion', 'Sin clasificación')}")
+                    try:
+                        from langchain_community.vectorstores import Chroma
+                        from langchain_community.embeddings import FastEmbedEmbeddings
+                        
+                        embeddings = FastEmbedEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+                        vectorstore = Chroma(persist_directory=CHROMA_PATH, embedding_function=embeddings)
+                        
+                        search_kwargs = {"k": top_k}
+                        if evaluador_filtro != "Todos":
+                            search_kwargs["filter"] = {"evaluador": evaluador_filtro}
+                        
+                        results = vectorstore.similarity_search(query, **search_kwargs)
+                        st.success(f"Se encontraron {len(results)} observaciones relevantes:")
+                        
+                        for idx, doc in enumerate(results, 1):
+                            with st.expander(f"📌 Resultado #{idx} - Expediente: {doc.metadata.get('expediente', 'N/A')} | Evaluador: {doc.metadata.get('evaluador', 'N/A')}"):
+                                st.markdown(f"**Observación:**\n{doc.page_content}")
+                                st.caption(f"Clasificación / Tema: {doc.metadata.get('clasificacion', 'Sin clasificación')}")
+                    except Exception as e:
+                        st.error(f"Error durante la búsqueda semántica: {e}")
         else:
             st.warning("Por favor ingrese un texto de consulta.")
 
