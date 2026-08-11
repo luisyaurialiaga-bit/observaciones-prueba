@@ -16,7 +16,7 @@ st.set_page_config(
 DB_SQL_PATH = "datos_its.db"
 CHROMA_PATH = "chroma_db"
 
-# 1. GENERACIÓN AUTOMÁTICA DE BASE DE DATOS EN LA NUBE
+# 1. GENERACIÓN AUTOMÁTICA DE BASE DE DATOS SQL EN LA NUBE
 def verificar_o_crear_bd():
     if not os.path.exists(DB_SQL_PATH):
         if os.path.exists("regenerar_base.py"):
@@ -31,7 +31,6 @@ verificar_o_crear_bd()
 def obtener_conexion_sql():
     return sqlite3.connect(DB_SQL_PATH)
 
-# Verificar si la tabla 'observaciones' existe
 def tabla_existe(nombre_tabla):
     conn = obtener_conexion_sql()
     cursor = conn.cursor()
@@ -40,7 +39,6 @@ def tabla_existe(nombre_tabla):
     conn.close()
     return existe
 
-# Si la tabla no existe tras ejecutar el script, forzar regeneración limpia
 if not tabla_existe("observaciones"):
     if os.path.exists(DB_SQL_PATH):
         os.remove(DB_SQL_PATH)
@@ -82,24 +80,30 @@ with tab1:
 
     if st.button("Buscar Observaciones", type="primary"):
         if query.strip():
+            # Generar ChromaDB automáticamente si no existe en la nube
             if not os.path.exists(CHROMA_PATH):
-                st.error("La base de datos vectorial ChromaDB aún no se ha generado en el servidor.")
-            else:
-                with st.spinner("Buscando las observaciones más relevantes..."):
-                    embeddings = FastEmbedEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-                    vectorstore = Chroma(persist_directory=CHROMA_PATH, embedding_function=embeddings)
-                    
-                    search_kwargs = {"k": top_k}
-                    if evaluador_filtro != "Todos":
-                        search_kwargs["filter"] = {"evaluador": evaluador_filtro}
-                    
-                    results = vectorstore.similarity_search(query, **search_kwargs)
-                    st.success(f"Se encontraron {len(results)} observaciones relevantes:")
-                    
-                    for idx, doc in enumerate(results, 1):
-                        with st.expander(f"📌 Resultado #{idx} - Expediente: {doc.metadata.get('expediente', 'N/A')} | Evaluador: {doc.metadata.get('evaluador', 'N/A')}"):
-                            st.markdown(f"**Observación:**\n{doc.page_content}")
-                            st.caption(f"Clasificación / Tema: {doc.metadata.get('clasificacion', 'Sin clasificación')}")
+                if os.path.exists("actualizar_metadatos_chroma.py"):
+                    with st.spinner("🧠 Generando índice de búsqueda semántica (ChromaDB) por primera vez... Esto tomará un par de minutos."):
+                        subprocess.run(["python", "actualizar_metadatos_chroma.py"])
+                else:
+                    st.error("No se encontró el script 'actualizar_metadatos_chroma.py' para construir el índice vectorial.")
+                    st.stop()
+
+            with st.spinner("Buscando las observaciones más relevantes..."):
+                embeddings = FastEmbedEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+                vectorstore = Chroma(persist_directory=CHROMA_PATH, embedding_function=embeddings)
+                
+                search_kwargs = {"k": top_k}
+                if evaluador_filtro != "Todos":
+                    search_kwargs["filter"] = {"evaluador": evaluador_filtro}
+                
+                results = vectorstore.similarity_search(query, **search_kwargs)
+                st.success(f"Se encontraron {len(results)} observaciones relevantes:")
+                
+                for idx, doc in enumerate(results, 1):
+                    with st.expander(f"📌 Resultado #{idx} - Expediente: {doc.metadata.get('expediente', 'N/A')} | Evaluador: {doc.metadata.get('evaluador', 'N/A')}"):
+                        st.markdown(f"**Observación:**\n{doc.page_content}")
+                        st.caption(f"Clasificación / Tema: {doc.metadata.get('clasificacion', 'Sin clasificación')}")
         else:
             st.warning("Por favor ingrese un texto de consulta.")
 
