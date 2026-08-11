@@ -1,12 +1,13 @@
 import streamlit as st
 import sqlite3
 import os
+import sys
 import subprocess
 import pandas as pd
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import FastEmbedEmbeddings
 
-# Configuración de página
+# Configuración de la página
 st.set_page_config(
     page_title="Sistema ITS SENACE",
     page_icon="🛡️",
@@ -32,26 +33,27 @@ def tabla_existe(nombre_tabla):
     except Exception:
         return False
 
-# 1. VERIFICACIÓN Y CREACIÓN DE BASE DE DATOS
+# 1. VERIFICACIÓN Y CREACIÓN AUTOMÁTICA DE BASES DE DATOS
 if not tabla_existe("observaciones"):
     with st.spinner("⏳ Generando base de datos SQLite y vectorizándola en la nube... Esto tardará entre 1 y 2 minutos."):
         if os.path.exists("regenerar_base.py"):
-            res1 = subprocess.run(["python", "regenerar_base.py"], capture_output=True, text=True)
+            # sys.executable fuerza el uso del entorno virtual de Streamlit Cloud
+            res1 = subprocess.run([sys.executable, "regenerar_base.py"], capture_output=True, text=True)
             if res1.returncode != 0:
                 st.error(f"Error al ejecutar regenerar_base.py: {res1.stderr}")
         
         if os.path.exists("actualizar_metadatos_chroma.py"):
-            res2 = subprocess.run(["python", "actualizar_metadatos_chroma.py"], capture_output=True, text=True)
+            res2 = subprocess.run([sys.executable, "actualizar_metadatos_chroma.py"], capture_output=True, text=True)
             if res2.returncode != 0:
                 st.error(f"Error al ejecutar actualizar_metadatos_chroma.py: {res2.stderr}")
         
         st.rerun()
 
-# Título Principal
+# Encabezado Principal
 st.title("🛡️ Sistema de Control de Calidad & Inteligencia ITS SENACE")
 st.caption("Matriz de Observaciones Clasificadas - Base Histórica")
 
-# Pestañas de la Aplicación
+# Navegación por pestañas
 tab1, tab2, tab3 = st.tabs(["🔍 Búsqueda Semántica", "📋 Consulta General SQL", "📊 Dashboard & Métricas"])
 
 # ---------------------------------------------------------
@@ -59,7 +61,7 @@ tab1, tab2, tab3 = st.tabs(["🔍 Búsqueda Semántica", "📋 Consulta General 
 # ---------------------------------------------------------
 with tab1:
     st.header("Búsqueda Avanzada de Observaciones")
-    query = st.text_input("Ingrese la consulta o temática a buscar:", placeholder="Ej: monitoreo de calidad de aire, plan de participacion ciudadana...")
+    query = st.text_input("Ingrese la consulta o temática a buscar:", placeholder="Ej: fauna, calidad de aire, plan de participacion ciudadana...")
     
     col1, col2 = st.columns([1, 2])
     with col1:
@@ -117,7 +119,7 @@ with tab2:
         st.info("La tabla 'observaciones' aún no está construida en SQLite.")
 
 # ---------------------------------------------------------
-# PESTAÑA 3: DASHBOARD
+# PESTAÑA 3: DASHBOARD & MÉTRICAS
 # ---------------------------------------------------------
 with tab3:
     st.header("Estadísticas y Carga de Trabajo")
