@@ -31,47 +31,30 @@ def tabla_existe(nombre_tabla):
     except Exception:
         return False
 
-def obtener_columna_observacion(df_o_conn):
-    """Detecta la columna de la observación en un DataFrame o en la tabla SQLite."""
-    if isinstance(df_o_conn, pd.DataFrame):
-        columnas = df_o_conn.columns.tolist()
-    else:
-        try:
-            cursor = df_o_conn.cursor()
-            cursor.execute("PRAGMA table_info(observaciones)")
-            columnas = [info[1] for info in cursor.fetchall()]
-        except Exception:
-            return "Observacion"
-            
-    for col in ["Observación", "OBSERVACION", "Observacion", "observacion"]:
-        if col in columnas:
-            return col
-    return columnas[0] if columnas else "Observacion"
-
 def normalizar_nombre_evaluador(nombre):
     """Limpia y estandariza los nombres de los evaluadores/coordinadores."""
     if pd.isna(nombre):
         return "Sin Asignar"
-    
     nombre_str = str(nombre).strip()
-    
     if not nombre_str or nombre_str.lower() in ["nan", "none", "null", "-", "", "sin información", "sin informacion"]:
         return "Sin Asignar"
-    
-    nombre_limpio = re.sub(r'\s+', ' ', nombre_str).title()
-    return nombre_limpio
+    return re.sub(r'\s+', ' ', nombre_str).title()
 
-def construir_base_rapida_y_normalizada():
-    """Lee el Excel, aplica la normalización de datos y guarda en SQLite."""
-    if not os.path.exists(EXCEL_PATH):
-        st.error(f"No se encontró el archivo Excel: {EXCEL_PATH}.")
-        return False
+@st.cache_data(show_spinner=False)
+def cargar_y_normalizar_excel(path_excel):
+    """Carga el Excel optimizando uso de memoria y aplica normalización."""
+    df = pd.read_excel(path_excel)
     
-    df = pd.read_excel(EXCEL_PATH)
-    col_obs = obtener_columna_observacion(df)
-    
-    # 1. Normalización de observaciones
+    # Detectar columna de observaciones
+    col_obs = "Observacion"
+    for col in ["Observación", "OBSERVACION", "Observacion", "observacion"]:
+        if col in df.columns:
+            col_obs = col
+            break
+            
     df[col_obs] = df[col_obs].astype(str).str.strip()
+    
+    # Filtrar vacíos y nulos
     df = df[
         df[col_obs].notna() & 
         (df[col_obs] != "") & 
@@ -79,27 +62,37 @@ def construir_base_rapida_y_normalizada():
         (df[col_obs].str.lower() != "none")
     ].copy()
     
-    # 2. Normalización de evaluadores
+    # Normalizar Evaluadores / Coordinadores
     if 'Coordinador' in df.columns:
         df['Coordinador'] = df['Coordinador'].apply(normalizar_nombre_evaluador)
     elif 'Especialista' in df.columns:
         df['Coordinador'] = df['Especialista'].apply(normalizar_nombre_evaluador)
-    
-    # 3. Limpieza de otras columnas
+    else:
+        df['Coordinador'] = 'Sin Asignar'
+        
+    # Limpieza básica del resto de campos
     for col in ['Expediente', 'Especialidad Final', 'Empresa', 'Titulo Proyecto']:
         if col in df.columns:
             df[col] = df[col].fillna('Sin información').astype(str).str.strip()
             df[col] = df[col].replace({'nan': 'Sin información', 'None': 'Sin información', '': 'Sin información'})
+            
+    return df, col_obs
 
+def inicializar_bd():
+    if not os.path.exists(EXCEL_PATH):
+        st.error(f"No se encontró el archivo Excel: {EXCEL_PATH}")
+        return False
+    
+    df, col_obs = cargar_y_normalizar_excel(EXCEL_PATH)
     conn = obtener_conexion_sql()
     df.to_sql("observaciones", conn, if_exists="replace", index=False)
     conn.close()
     return True
 
-# 1. VERIFICACIÓN Y CREACIÓN DE BASE DE DATOS
+# Creación/Inicialización inicial si no existe la tabla
 if not tabla_existe("observaciones"):
-    with st.spinner("⚡ Normalizando datos y regenerando base de datos..."):
-        if construir_base_rapida_y_normalizada():
+    with st.spinner("⚡ Preparando y normalizando base de datos..."):
+        if inicializar_bd():
             st.rerun()
 
 # Encabezado Principal
@@ -137,7 +130,16 @@ with tab1:
     if st.button("Buscar Observaciones", type="primary"):
         if query.strip():
             conn = obtener_conexion_sql()
-            col_obs = obtener_columna_observacion(conn)
+            
+            # Detectar columna de observación en SQLite
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(observaciones)")
+            columnas = [info[1] for info in cursor.fetchall()]
+            col_obs = "Observacion"
+            for col in ["Observación", "OBSERVACION", "Observacion", "observacion"]:
+                if col in columnas:
+                    col_obs = col
+                    break
             
             query_sql = f'SELECT * FROM observaciones WHERE "{col_obs}" LIKE ?'
             params = [f"%{query.strip()}%"]
@@ -196,7 +198,7 @@ with tab3:
         df_all = pd.read_sql_query("SELECT * FROM observaciones", conn)
         conn.close()
         
-        # 1. TARJETAS DE INDICADORES CLAVE (KPIs)
+        # TARJETAS DE INDICADORES CLAVE (KPIs)
         col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
         
         total_obs = len(df_all)
@@ -211,7 +213,7 @@ with tab3:
         
         st.markdown("---")
         
-        # 2. GRÁFICOS INTERACTIVOS (FILA 1)
+        # GRÁFICOS INTERACTIVOS (FILA 1)
         col_chart1, col_chart2 = st.columns(2)
         
         with col_chart1:
@@ -248,7 +250,7 @@ with tab3:
                 )
                 st.plotly_chart(fig_tema, use_container_width=True)
 
-        # 3. GRÁFICOS INTERACTIVOS (FILA 2)
+        # GRÁFICOS INTERACTIVOS (FILA 2)
         col_chart3, col_chart4 = st.columns(2)
         
         with col_chart3:
