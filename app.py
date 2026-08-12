@@ -18,21 +18,20 @@ EXCEL_PATH = "observaciones_clasificadas_FINAL_v33.xlsx"
 def obtener_conexion_sql():
     return sqlite3.connect(DB_SQL_PATH)
 
-def tabla_existe(nombre_tabla):
+def tabla_existe():
     if not os.path.exists(DB_SQL_PATH):
         return False
     try:
         conn = obtener_conexion_sql()
         cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (nombre_tabla,))
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='observaciones'")
         existe = cursor.fetchone() is not None
         conn.close()
         return existe
     except Exception:
         return False
 
-def normalizar_nombre_evaluador(nombre):
-    """Limpia y estandariza los nombres de los evaluadores/coordinadores."""
+def normalizar_nombre(nombre):
     if pd.isna(nombre):
         return "Sin Asignar"
     nombre_str = str(nombre).strip()
@@ -40,70 +39,61 @@ def normalizar_nombre_evaluador(nombre):
         return "Sin Asignar"
     return re.sub(r'\s+', ' ', nombre_str).title()
 
-@st.cache_data(show_spinner=False)
-def cargar_y_normalizar_excel(path_excel):
-    """Carga el Excel optimizando uso de memoria y aplica normalización."""
-    df = pd.read_excel(path_excel)
+@st.cache_resource
+def preparar_base_datos():
+    """Genera la base de datos SQLite solo una vez."""
+    if tabla_existe():
+        return True
     
-    # Detectar columna de observaciones
-    col_obs = "Observacion"
+    if not os.path.exists(EXCEL_PATH):
+        return False
+
+    # Leer únicamente las columnas necesarias para ahorrar RAM
+    try:
+        df = pd.read_excel(EXCEL_PATH)
+    except Exception:
+        return False
+
+    col_obs = "Observación"
     for col in ["Observación", "OBSERVACION", "Observacion", "observacion"]:
         if col in df.columns:
             col_obs = col
             break
-            
+
+    # Filtrar nulos y limpiar
     df[col_obs] = df[col_obs].astype(str).str.strip()
-    
-    # Filtrar vacíos y nulos
-    df = df[
-        df[col_obs].notna() & 
-        (df[col_obs] != "") & 
-        (df[col_obs].str.lower() != "nan") &
-        (df[col_obs].str.lower() != "none")
-    ].copy()
-    
-    # Normalizar Evaluadores / Coordinadores
+    df = df[df[col_obs].notna() & (df[col_obs] != "") & (df[col_obs].str.lower() != "nan")].copy()
+
+    # Normalización de Evaluadores
     if 'Coordinador' in df.columns:
-        df['Coordinador'] = df['Coordinador'].apply(normalizar_nombre_evaluador)
+        df['Coordinador'] = df['Coordinador'].apply(normalizar_nombre)
     elif 'Especialista' in df.columns:
-        df['Coordinador'] = df['Especialista'].apply(normalizar_nombre_evaluador)
+        df['Coordinador'] = df['Especialista'].apply(normalizar_nombre)
     else:
         df['Coordinador'] = 'Sin Asignar'
-        
-    # Limpieza básica del resto de campos
+
+    # Campos descriptivos
     for col in ['Expediente', 'Especialidad Final', 'Empresa', 'Titulo Proyecto']:
         if col in df.columns:
             df[col] = df[col].fillna('Sin información').astype(str).str.strip()
             df[col] = df[col].replace({'nan': 'Sin información', 'None': 'Sin información', '': 'Sin información'})
-            
-    return df, col_obs
 
-def inicializar_bd():
-    if not os.path.exists(EXCEL_PATH):
-        st.error(f"No se encontró el archivo Excel: {EXCEL_PATH}")
-        return False
-    
-    df, col_obs = cargar_y_normalizar_excel(EXCEL_PATH)
     conn = obtener_conexion_sql()
     df.to_sql("observaciones", conn, if_exists="replace", index=False)
     conn.close()
     return True
 
-# Creación/Inicialización inicial si no existe la tabla
-if not tabla_existe("observaciones"):
-    with st.spinner("⚡ Preparando y normalizando base de datos..."):
-        if inicializar_bd():
-            st.rerun()
+# Inicializar Base de Datos
+base_lista = preparar_base_datos()
 
 # Encabezado Principal
 st.title("🛡️ Sistema de Control de Calidad & Inteligencia ITS SENACE")
 st.caption("Matriz de Observaciones Clasificadas - Base Histórica Normalizada")
 
-# Navegación por pestañas
 tab1, tab2, tab3 = st.tabs(["🔍 Búsqueda de Observaciones", "📋 Consulta General SQL", "📊 Dashboard Completo & Métricas"])
 
 # ---------------------------------------------------------
-# PESTAÑA 1: BÚSQUEDA DE OBSERVACIONES
+# PESTAÑA 1: BÚSQUEDA
 # ---------------------------------------------------------
 with tab1:
     st.header("Búsqueda Avanzada de Observaciones")
@@ -114,7 +104,7 @@ with tab1:
         top_k = st.slider("Cantidad de resultados:", min_value=5, max_value=50, value=10)
     
     lista_evaluadores = ["Todos"]
-    if tabla_existe("observaciones"):
+    if tabla_existe():
         conn = obtener_conexion_sql()
         try:
             evaluadores_df = pd.read_sql_query('SELECT DISTINCT "Coordinador" FROM observaciones WHERE "Coordinador" IS NOT NULL AND "Coordinador" NOT IN ("", "Sin Asignar") ORDER BY "Coordinador"', conn)
@@ -128,13 +118,12 @@ with tab1:
         evaluador_filtro = st.selectbox("Filtrar por Evaluador/Especialista:", lista_evaluadores)
 
     if st.button("Buscar Observaciones", type="primary"):
-        if query.strip():
+        if query.strip() and tabla_existe():
             conn = obtener_conexion_sql()
-            
-            # Detectar columna de observación en SQLite
             cursor = conn.cursor()
             cursor.execute("PRAGMA table_info(observaciones)")
             columnas = [info[1] for info in cursor.fetchall()]
+            
             col_obs = "Observacion"
             for col in ["Observación", "OBSERVACION", "Observacion", "observacion"]:
                 if col in columnas:
@@ -170,35 +159,34 @@ with tab1:
                         st.markdown(f"**Observación:**\n\n{obs_texto}")
             else:
                 st.info("No se encontraron observaciones que coincidan con la búsqueda.")
-        else:
+        elif not query.strip():
             st.warning("Por favor ingrese un texto de consulta.")
 
 # ---------------------------------------------------------
-# PESTAÑA 2: CONSULTA GENERAL SQL
+# PESTAÑA 2: CONSULTA GENERAL
 # ---------------------------------------------------------
 with tab2:
     st.header("Explorador de la Base de Datos")
-    if tabla_existe("observaciones"):
+    if tabla_existe():
         conn = obtener_conexion_sql()
         df_preview = pd.read_sql_query("SELECT * FROM observaciones LIMIT 100", conn)
         conn.close()
         st.write("Mostrando los primeros 100 registros normalizados:")
         st.dataframe(df_preview, use_container_width=True)
     else:
-        st.info("La tabla 'observaciones' aún no está construida en SQLite.")
+        st.info("Construyendo tabla de observaciones...")
 
 # ---------------------------------------------------------
-# PESTAÑA 3: DASHBOARD COMPLETO & MÉTRICAS
+# PESTAÑA 3: DASHBOARD
 # ---------------------------------------------------------
 with tab3:
     st.header("📊 Dashboard General de Estadísticas y Control")
     
-    if tabla_existe("observaciones"):
+    if tabla_existe():
         conn = obtener_conexion_sql()
         df_all = pd.read_sql_query("SELECT * FROM observaciones", conn)
         conn.close()
         
-        # TARJETAS DE INDICADORES CLAVE (KPIs)
         col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
         
         total_obs = len(df_all)
@@ -213,7 +201,6 @@ with tab3:
         
         st.markdown("---")
         
-        # GRÁFICOS INTERACTIVOS (FILA 1)
         col_chart1, col_chart2 = st.columns(2)
         
         with col_chart1:
@@ -250,7 +237,6 @@ with tab3:
                 )
                 st.plotly_chart(fig_tema, use_container_width=True)
 
-        # GRÁFICOS INTERACTIVOS (FILA 2)
         col_chart3, col_chart4 = st.columns(2)
         
         with col_chart3:
@@ -285,4 +271,4 @@ with tab3:
                 fig_exp.update_xaxes(tickangle=45)
                 st.plotly_chart(fig_exp, use_container_width=True)
     else:
-        st.info("La tabla de observaciones aún no está disponible para generar el dashboard.")
+        st.info("Cargando métricas...")
