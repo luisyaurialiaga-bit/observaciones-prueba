@@ -12,48 +12,6 @@ st.set_page_config(
     layout="wide"
 )
 
-
-def verificar_login():
-    """
-    Pide usuario y contraseña antes de mostrar la app. Las credenciales
-    NO estan en este archivo (el repo es publico) -- se configuran aparte
-    en Streamlit Cloud, en Settings > Secrets, con este formato:
-
-        [credenciales]
-        sugle_admin = "una-clave-segura"
-        consultora_x = "otra-clave"
-
-    Cada usuario puede tener su propia clave -- util para dar acceso a
-    distintas consultoras mas adelante sin compartir una sola contraseña.
-    """
-    if st.session_state.get("autenticado"):
-        return True
-
-    st.title("🔒 Acceso restringido")
-    st.caption("Sistema de Control de Calidad & Inteligencia ITS SENACE")
-
-    with st.form("login"):
-        usuario = st.text_input("Usuario")
-        clave = st.text_input("Contraseña", type="password")
-        enviado = st.form_submit_button("Ingresar", type="primary")
-
-    if enviado:
-        credenciales = st.secrets.get("credenciales", {})
-        if not credenciales:
-            st.error("No hay credenciales configuradas todavía. Configúralas en Settings → Secrets.")
-        elif usuario in credenciales and clave == credenciales[usuario]:
-            st.session_state["autenticado"] = True
-            st.session_state["usuario_actual"] = usuario
-            st.rerun()
-        else:
-            st.error("Usuario o contraseña incorrectos.")
-
-    return False
-
-
-if not verificar_login():
-    st.stop()
-
 PARQUET_PATH = "observaciones_clasificadas_FINAL_v33.parquet"
 EXCEL_PATH = "observaciones_clasificadas_FINAL_v33.xlsx"
 
@@ -203,12 +161,6 @@ def cargar_datos():
 
 
 # Encabezado Principal
-with st.sidebar:
-    st.markdown(f"👤 Conectado como **{st.session_state.get('usuario_actual', '')}**")
-    if st.button("Cerrar sesión"):
-        st.session_state["autenticado"] = False
-        st.rerun()
-
 st.title("🛡️ Sistema de Control de Calidad & Inteligencia ITS SENACE")
 st.caption("Matriz de Observaciones Clasificadas - Base Histórica Normalizada")
 
