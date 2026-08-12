@@ -220,6 +220,18 @@ with tab1:
                     st.success(f"Se encontraron **{total_encontradas}** observaciones en total — mostrando las primeras {len(df_res)}:")
                 else:
                     st.success(f"Se encontraron **{total_encontradas}** observaciones en total:")
+
+                # Desglose por especialidad de TODAS las coincidencias (no
+                # solo las que se muestran), para ver de un vistazo donde
+                # se concentra el tema buscado. Solo tiene sentido cuando
+                # no se filtro ya por una especialidad especifica.
+                if especialidad_filtro == "Todas" and 'Especialidad Final' in df_all.columns:
+                    conteo_especialidad = df_all.loc[mask, 'Especialidad Final'].value_counts()
+                    resumen = " &nbsp;|&nbsp; ".join(
+                        f"{esp} ({cant})" for esp, cant in conteo_especialidad.items()
+                    )
+                    st.caption(f"Por especialidad: {resumen}")
+
                 for idx, row in df_res.reset_index().iterrows():
                     num_res = idx + 1
                     exp = row.get('Expediente', 'Sin información')
