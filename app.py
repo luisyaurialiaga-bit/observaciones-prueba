@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import os
+import unicodedata
 
 # Configuración de la página
 st.set_page_config(
@@ -10,10 +11,26 @@ st.set_page_config(
     layout="wide"
 )
 
-# Se prefiere el .parquet (mucho mas rapido y liviano) y se cae al .xlsx
-# solo si el parquet no existe todavia en el repo.
 PARQUET_PATH = "observaciones_clasificadas_FINAL_v33.parquet"
 EXCEL_PATH = "observaciones_clasificadas_FINAL_v33.xlsx"
+
+
+def quitar_tildes(texto):
+    """Quita tildes/diacríticos para poder comparar 'Iban' y 'Ibán' como el mismo nombre."""
+    return ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
+
+
+def normalizar_nombres(serie):
+    """
+    Agrupa variantes de un mismo nombre que difieren solo en tildes/mayusculas
+    (ej. 'Iban' y 'Ibán') y las reemplaza a TODAS por la forma mas frecuente
+    de ese nombre en los datos -- asi no se pierden tildes si esa es la forma
+    correcta y mayoritaria, pero tampoco quedan como "personas" distintas.
+    """
+    claves = serie.apply(lambda x: quitar_tildes(x).upper())
+    forma_canonica = serie.groupby(claves).agg(lambda s: s.value_counts().idxmax())
+    return claves.map(forma_canonica)
+
 
 @st.cache_data(show_spinner="Cargando base de datos...")
 def cargar_datos():
@@ -45,11 +62,23 @@ def cargar_datos():
     df['Coordinador'] = df['Coordinador'].fillna('Sin Asignar').astype(str).str.strip().str.title()
     df['Coordinador'] = df['Coordinador'].replace({'Nan': 'Sin Asignar', 'None': 'Sin Asignar', '': 'Sin Asignar'})
 
+    # Unificar variantes del mismo nombre (con/sin tilde, mayus/minus) que
+    # antes se contaban como personas distintas.
+    mask_asignado = df['Coordinador'] != 'Sin Asignar'
+    if mask_asignado.any():
+        df.loc[mask_asignado, 'Coordinador'] = normalizar_nombres(df.loc[mask_asignado, 'Coordinador'])
+
     for col in ['Expediente', 'Especialidad Final', 'Empresa', 'Titulo Proyecto']:
         if col in df.columns:
             df[col] = df[col].fillna('Sin información').astype(str).str.strip()
+            # Tambien normalizamos nombres de empresa por la misma razon
+            if col == 'Empresa':
+                mask_emp = df[col] != 'Sin información'
+                if mask_emp.any():
+                    df.loc[mask_emp, col] = normalizar_nombres(df.loc[mask_emp, col])
 
     return df, col_obs
+
 
 # Encabezado Principal
 st.title("🛡️ Sistema de Control de Calidad & Inteligencia ITS SENACE")
@@ -83,10 +112,8 @@ with tab1:
 
     if st.button("Buscar Observaciones", type="primary"):
         if query.strip():
-            # Filtrar por texto
             mask = df_all[col_obs].str.contains(query.strip(), case=False, na=False)
 
-            # Filtrar por evaluador si aplica
             if evaluador_filtro != "Todos":
                 mask = mask & (df_all['Coordinador'] == evaluador_filtro)
 
@@ -117,8 +144,24 @@ with tab1:
 # ---------------------------------------------------------
 with tab2:
     st.header("Explorador de la Base de Datos")
-    st.write("Mostrando los primeros 100 registros:")
-    st.dataframe(df_all.head(100), use_container_width=True)
+    st.write(f"Total de registros: **{len(df_all):,}**")
+
+    filtro_libre = st.text_input(
+        "Filtrar (opcional) — busca en todas las columnas de texto:",
+        placeholder="Ej: un nombre, una empresa, una palabra clave..."
+    )
+
+    if filtro_libre.strip():
+        cols_texto = df_all.select_dtypes(include="object").columns
+        mask = pd.Series(False, index=df_all.index)
+        for c in cols_texto:
+            mask = mask | df_all[c].astype(str).str.contains(filtro_libre.strip(), case=False, na=False)
+        df_mostrar = df_all[mask]
+        st.write(f"Coincidencias: **{len(df_mostrar):,}**")
+    else:
+        df_mostrar = df_all
+
+    st.dataframe(df_mostrar, use_container_width=True, height=600)
 
 # ---------------------------------------------------------
 # PESTAÑA 3: DASHBOARD COMPLETO & MÉTRICAS
@@ -209,3 +252,81 @@ with tab3:
             )
             fig_exp.update_xaxes(tickangle=45)
             st.plotly_chart(fig_exp, use_container_width=True)
+
+    st.markdown("---")
+    st.subheader("🧭 Vistas adicionales")
+
+    col_chart5, col_chart6 = st.columns(2)
+
+    with col_chart5:
+        col_tema = 'Especialidad Final' if 'Especialidad Final' in df_all.columns else None
+        if 'Coordinador' in df_all.columns and col_tema:
+            st.markdown("**Mapa de calor: Evaluador × Especialidad**")
+            df_hm = df_all[df_all['Coordinador'] != 'Sin Asignar']
+            top_evaluadores = df_hm['Coordinador'].value_counts().head(12).index
+            top_especialidades = df_hm[col_tema].value_counts().head(10).index
+            df_hm = df_hm[df_hm['Coordinador'].isin(top_evaluadores) & df_hm[col_tema].isin(top_especialidades)]
+            if not df_hm.empty:
+                tabla_cruzada = pd.crosstab(df_hm['Coordinador'], df_hm[col_tema])
+                fig_hm = px.imshow(
+                    tabla_cruzada,
+                    text_auto=True,
+                    color_continuous_scale='Blues',
+                    aspect="auto"
+                )
+                fig_hm.update_layout(xaxis_title="Especialidad", yaxis_title="Evaluador")
+                st.plotly_chart(fig_hm, use_container_width=True)
+            else:
+                st.caption("No hay suficientes datos cruzados para mostrar.")
+
+    with col_chart6:
+        col_item = next((c for c in ['Ítem', 'Item', 'ITEM'] if c in df_all.columns), None)
+        if col_item:
+            st.markdown("**Ítems / temas más recurrentes**")
+            df_item = df_all[df_all[col_item].notna() & (df_all[col_item].astype(str).str.strip() != '')]
+            df_item = df_item[col_item].astype(str).str.strip().value_counts().reset_index().head(15)
+            df_item.columns = ['Ítem', 'Cantidad']
+            fig_item = px.bar(
+                df_item.sort_values('Cantidad'),
+                x='Cantidad',
+                y='Ítem',
+                orientation='h',
+                color='Cantidad',
+                color_continuous_scale='Purples'
+            )
+            fig_item.update_layout(showlegend=False)
+            st.plotly_chart(fig_item, use_container_width=True)
+
+    col_chart7, col_chart8 = st.columns(2)
+
+    with col_chart7:
+        col_imagen = next((c for c in ['Tiene Imagen', 'tiene_imagen'] if c in df_all.columns), None)
+        if col_imagen:
+            st.markdown("**Observaciones con evidencia gráfica**")
+            df_img = df_all[col_imagen].astype(str).str.upper().str.strip()
+            df_img = df_img.replace({'SI': 'Con imagen', 'SÍ': 'Con imagen', 'NO': 'Sin imagen'})
+            df_img_counts = df_img.value_counts().reset_index()
+            df_img_counts.columns = ['Estado', 'Cantidad']
+            fig_img = px.pie(
+                df_img_counts,
+                names='Estado',
+                values='Cantidad',
+                hole=0.4,
+                color_discrete_sequence=px.colors.qualitative.Set2
+            )
+            st.plotly_chart(fig_img, use_container_width=True)
+
+    with col_chart8:
+        col_fecha = next((c for c in ['Fecha', 'FECHA', 'fecha'] if c in df_all.columns), None)
+        if col_fecha:
+            st.markdown("**Evolución de observaciones en el tiempo**")
+            df_fecha = df_all.copy()
+            df_fecha[col_fecha] = pd.to_datetime(df_fecha[col_fecha], errors='coerce')
+            df_fecha = df_fecha.dropna(subset=[col_fecha])
+            if not df_fecha.empty:
+                df_mensual = df_fecha.set_index(col_fecha).resample('ME').size().reset_index()
+                df_mensual.columns = ['Mes', 'Cantidad']
+                fig_tiempo = px.line(df_mensual, x='Mes', y='Cantidad', markers=True)
+                st.plotly_chart(fig_tiempo, use_container_width=True)
+            else:
+                st.caption("No se pudieron interpretar las fechas de esta columna.")
