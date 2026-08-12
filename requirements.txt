@@ -2,8 +2,3 @@ streamlit
 pandas
 openpyxl
 plotly
-langchain
-langchain-community
-langchain-core
-chromadb
-fastembed
