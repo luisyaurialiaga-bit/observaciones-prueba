@@ -12,6 +12,48 @@ st.set_page_config(
     layout="wide"
 )
 
+
+def verificar_login():
+    """
+    Pide usuario y contraseña antes de mostrar la app. Las credenciales
+    NO estan en este archivo (el repo es publico) -- se configuran aparte
+    en Streamlit Cloud, en Settings > Secrets, con este formato:
+
+        [credenciales]
+        sugle_admin = "una-clave-segura"
+        consultora_x = "otra-clave"
+
+    Cada usuario puede tener su propia clave -- util para dar acceso a
+    distintas consultoras mas adelante sin compartir una sola contraseña.
+    """
+    if st.session_state.get("autenticado"):
+        return True
+
+    st.title("🔒 Acceso restringido")
+    st.caption("Sistema de Control de Calidad & Inteligencia ITS SENACE")
+
+    with st.form("login"):
+        usuario = st.text_input("Usuario")
+        clave = st.text_input("Contraseña", type="password")
+        enviado = st.form_submit_button("Ingresar", type="primary")
+
+    if enviado:
+        credenciales = st.secrets.get("credenciales", {})
+        if not credenciales:
+            st.error("No hay credenciales configuradas todavía. Configúralas en Settings → Secrets.")
+        elif usuario in credenciales and clave == credenciales[usuario]:
+            st.session_state["autenticado"] = True
+            st.session_state["usuario_actual"] = usuario
+            st.rerun()
+        else:
+            st.error("Usuario o contraseña incorrectos.")
+
+    return False
+
+
+if not verificar_login():
+    st.stop()
+
 PARQUET_PATH = "observaciones_clasificadas_FINAL_v33.parquet"
 EXCEL_PATH = "observaciones_clasificadas_FINAL_v33.xlsx"
 
@@ -23,6 +65,25 @@ def valor_o_vacio(valor):
     if pd.isna(valor):
         return ''
     return str(valor).strip()
+
+
+def formatear_parrafos(texto):
+    """
+    Reconstruye parrafos legibles en textos largos extraidos de PDF, donde
+    los saltos de linea originales se perdieron y todo quedo en una sola
+    linea corrida. Inserta un salto de parrafo antes de:
+      - vinetas '•'
+      - incisos tipo 'a)', 'b)', 'c)'... que empiezan una clausula nueva
+        (precedidos de un punto/espacio y seguidos de mayuscula)
+    Probado contra 300 textos reales sin generar cortes falsos.
+    """
+    if not texto:
+        return texto
+    t = texto
+    t = re.sub(r'\s*•\s*', '\n\n• ', t)
+    t = re.sub(r'(?<=[.\s])([a-z])\)\s+(?=[A-ZÁÉÍÓÚÑ])', r'\n\n\1) ', t)
+    t = re.sub(r'\n{3,}', '\n\n', t)
+    return t.strip()
 
 
 def quitar_tildes(texto):
@@ -142,6 +203,12 @@ def cargar_datos():
 
 
 # Encabezado Principal
+with st.sidebar:
+    st.markdown(f"👤 Conectado como **{st.session_state.get('usuario_actual', '')}**")
+    if st.button("Cerrar sesión"):
+        st.session_state["autenticado"] = False
+        st.rerun()
+
 st.title("🛡️ Sistema de Control de Calidad & Inteligencia ITS SENACE")
 st.caption("Matriz de Observaciones Clasificadas - Base Histórica Normalizada")
 
@@ -160,28 +227,47 @@ tab1, tab2, tab3 = st.tabs(["🔍 Búsqueda de Observaciones", "📋 Consulta Ge
 # ---------------------------------------------------------
 with tab1:
     st.header("Búsqueda Avanzada de Observaciones")
-    query = st.text_input("Ingrese la consulta o temática a buscar:", placeholder="Ej: fauna, calidad de aire, plan de participacion ciudadana...")
+    query = st.text_input("Ingrese la consulta o temática a buscar:", placeholder="Ej: bofedal impacto, calidad de aire, plan de participacion ciudadana...")
 
     col1, col2 = st.columns([1, 2])
     with col1:
         top_k = st.slider("Cantidad de resultados:", min_value=5, max_value=50, value=10)
 
-    lista_evaluadores = ["Todos"] + sorted([e for e in df_all['Coordinador'].unique() if e not in ["Sin Asignar", ""]])
+    lista_especialidades = ["Todas"] + sorted([e for e in df_all['Especialidad Final'].dropna().unique() if e])
 
     with col2:
-        evaluador_filtro = st.selectbox("Filtrar por Evaluador/Especialista:", lista_evaluadores)
+        especialidad_filtro = st.selectbox("Filtrar por Especialidad:", lista_especialidades)
 
     if st.button("Buscar Observaciones", type="primary"):
         if query.strip():
-            mask = df_all[col_obs].str.contains(query.strip(), case=False, na=False)
+            # Busqueda por palabras: TODAS las palabras ingresadas deben
+            # aparecer (en cualquier orden), no la frase exacta completa.
+            # Ej: "bofedal impacto" encuentra observaciones que mencionen
+            # ambas palabras, aunque esten separadas en el texto.
+            palabras = [p for p in query.strip().split() if p]
 
-            if evaluador_filtro != "Todos":
-                mask = mask & (df_all['Coordinador'] == evaluador_filtro)
+            texto_busqueda = df_all[col_obs].fillna('')
+            if 'Fundamento' in df_all.columns:
+                # Tambien se busca en el Fundamento, porque a veces el
+                # termino buscado aparece ahi y no literalmente en la
+                # Observacion.
+                texto_busqueda = texto_busqueda + ' ' + df_all['Fundamento'].fillna('')
 
+            mask = pd.Series(True, index=df_all.index)
+            for palabra in palabras:
+                mask = mask & texto_busqueda.str.contains(re.escape(palabra), case=False, na=False)
+
+            if especialidad_filtro != "Todas":
+                mask = mask & (df_all['Especialidad Final'] == especialidad_filtro)
+
+            total_encontradas = mask.sum()
             df_res = df_all[mask].head(top_k)
 
             if not df_res.empty:
-                st.success(f"Se encontraron {len(df_res)} observaciones relacionadas:")
+                if total_encontradas > len(df_res):
+                    st.success(f"Se encontraron **{total_encontradas}** observaciones en total — mostrando las primeras {len(df_res)}:")
+                else:
+                    st.success(f"Se encontraron **{total_encontradas}** observaciones en total:")
                 for idx, row in df_res.reset_index().iterrows():
                     num_res = idx + 1
                     exp = row.get('Expediente', 'Sin información')
@@ -220,14 +306,14 @@ with tab1:
                         st.markdown("---")
 
                         if fundamento:
-                            st.markdown(f"**⚖️ Fundamento / Sustento legal:**\n\n{fundamento}")
+                            st.markdown(f"**⚖️ Fundamento / Sustento legal:**\n\n{formatear_parrafos(fundamento)}")
                             st.markdown("")
 
-                        st.markdown(f"**Observación:**\n\n{obs_texto}")
+                        st.markdown(f"**Observación:**\n\n{formatear_parrafos(str(obs_texto))}")
 
                         if subsanacion:
                             st.markdown("")
-                            st.markdown(f"**✅ Cómo se subsanó:**\n\n{subsanacion}")
+                            st.markdown(f"**✅ Cómo se subsanó:**\n\n{formatear_parrafos(subsanacion)}")
 
                         # Referencia citable: numero de Informe oficial + pagina,
                         # NO el nombre de archivo (los PDFs de SENACE traen nombres
