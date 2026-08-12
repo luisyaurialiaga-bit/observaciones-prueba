@@ -484,3 +484,36 @@ with tab3:
                 st.plotly_chart(fig_tiempo, use_container_width=True)
             else:
                 st.caption("No se pudieron interpretar las fechas de esta columna.")
+
+    col_chart9, _ = st.columns(2)
+
+    with col_chart9:
+        col_fecha = next((c for c in ['Fecha', 'FECHA', 'fecha'] if c in df_all.columns), None)
+        if col_fecha and 'Expediente' in df_all.columns:
+            st.markdown("**ITS evaluados por año**")
+            df_its = df_all.copy()
+            df_its[col_fecha] = df_its[col_fecha].apply(parsear_fecha_es)
+            df_its = df_its.dropna(subset=[col_fecha])
+            if not df_its.empty:
+                # Se cuenta por EXPEDIENTE UNICO, no por fila de observacion
+                # -- un solo ITS tiene decenas de observaciones, contar filas
+                # inflaria el numero de estudios evaluados.
+                df_its['Año'] = df_its[col_fecha].dt.year
+                its_por_anio = df_its.groupby('Año')['Expediente'].nunique().reset_index()
+                its_por_anio.columns = ['Año', 'Cantidad de ITS']
+                fig_its_anio = px.bar(
+                    its_por_anio,
+                    x='Año',
+                    y='Cantidad de ITS',
+                    color='Cantidad de ITS',
+                    color_continuous_scale='Teal',
+                    text='Cantidad de ITS'
+                )
+                fig_its_anio.update_layout(showlegend=False, xaxis=dict(type='category'))
+                st.plotly_chart(fig_its_anio, use_container_width=True)
+
+                sin_fecha = df_all['Expediente'].nunique() - df_its['Expediente'].nunique()
+                if sin_fecha > 0:
+                    st.caption(f"({sin_fecha} expediente(s) sin fecha identificable, no incluido(s) en el gráfico)")
+            else:
+                st.caption("No se pudieron interpretar las fechas de esta columna.")
