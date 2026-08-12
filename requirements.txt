@@ -1,6 +1,7 @@
 streamlit
 pandas
 openpyxl
+plotly
 langchain
 langchain-community
 langchain-core
