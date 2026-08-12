@@ -1,7 +1,9 @@
 import streamlit as st
 import sqlite3
 import os
+import re
 import pandas as pd
+import plotly.express as px
 
 # Configuración de la página
 st.set_page_config(
@@ -30,43 +32,83 @@ def tabla_existe(nombre_tabla):
     except Exception:
         return False
 
-def obtener_columna_observacion(conn):
-    """Detecta dinámicamente cómo se llama la columna de texto de observación."""
-    try:
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(observaciones)")
-        columnas = [info[1] for info in cursor.fetchall()]
-        
-        for col in ["Observación", "OBSERVACION", "Observacion", "observacion"]:
-            if col in columnas:
-                return col
-        return columnas[0] if columnas else "Observacion"
-    except Exception:
-        return "Observacion"
+def obtener_columna_observacion(df_o_conn):
+    """Detecta la columna de la observación en un DataFrame o en la tabla SQLite."""
+    if isinstance(df_o_conn, pd.DataFrame):
+        columnas = df_o_conn.columns.tolist()
+    else:
+        try:
+            cursor = df_o_conn.cursor()
+            cursor.execute("PRAGMA table_info(observaciones)")
+            columnas = [info[1] for info in cursor.fetchall()]
+        except Exception:
+            return "Observacion"
+            
+    for col in ["Observación", "OBSERVACION", "Observacion", "observacion"]:
+        if col in columnas:
+            return col
+    return columnas[0] if columnas else "Observacion"
 
-def construir_base_rapida():
+def normalizar_nombre_evaluador(nombre):
+    """Limpia y estandariza los nombres de los evaluadores/coordinadores."""
+    if pd.isna(nombre):
+        return "Sin Asignar"
+    
+    nombre_str = str(nombre).strip()
+    
+    if not nombre_str or nombre_str.lower() in ["nan", "none", "null", "-", "", "sin información", "sin informacion"]:
+        return "Sin Asignar"
+    
+    nombre_limpio = re.sub(r'\s+', ' ', nombre_str).title()
+    return nombre_limpio
+
+def construir_base_rapida_y_normalizada():
+    """Lee el Excel, aplica la normalización de datos y guardado en SQLite."""
     if not os.path.exists(EXCEL_PATH):
         st.error(f"No se encontró el archivo Excel: {EXCEL_PATH}.")
         return False
     
     df = pd.read_excel(EXCEL_PATH)
+    col_obs = obtener_columna_observacion(df)
+    
+    # 1. Normalización de observaciones
+    df[col_obs] = df[col_obs].astype(str).str.strip()
+    df = df[
+        df[col_obs].notna() & 
+        (df[col_obs] != "") & 
+        (df[col_obs].str.lower() != "nan") &
+        (df[col_obs].str.lower() != "none")
+    ].copy()
+    
+    # 2. Normalización de evaluadores
+    if 'Coordinador' in df.columns:
+        df['Coordinador'] = df['Coordinador'].apply(normalizar_nombre_evaluador)
+    elif 'Especialista' in df.columns:
+        df['Coordinador'] = df['Especialista'].apply(normalizar_nombre_evaluador)
+    
+    # 3. Limpieza de resto de campos
+    for col in ['Expediente', 'Especialidad Final', 'Empresa', 'Titulo Proyecto']:
+        if col in df.columns:
+            df[col] = df[col].fillna('Sin información').astype(str).str.strip()
+            df[col] = df[col].replace({'nan': 'Sin información', 'None': 'Sin información', '': 'Sin información'})
+
     conn = obtener_conexion_sql()
     df.to_sql("observaciones", conn, if_exists="replace", index=False)
     conn.close()
     return True
 
-# 1. VERIFICACIÓN Y CREACIÓN INICIAL
+# 1. VERIFICACIÓN Y CREACIÓN DE BASE DE DATOS
 if not tabla_existe("observaciones"):
-    with st.spinner("⚡ Cargando datos del sistema..."):
-        if construir_base_rapida():
+    with st.spinner("⚡ Normalizando datos y regenerando base de datos..."):
+        if construir_base_rapida_y_normalizada():
             st.rerun()
 
 # Encabezado Principal
 st.title("🛡️ Sistema de Control de Calidad & Inteligencia ITS SENACE")
-st.caption("Matriz de Observaciones Clasificadas - Base Histórica")
+st.caption("Matriz de Observaciones Clasificadas - Base Histórica Normalizada")
 
 # Navegación por pestañas
-tab1, tab2, tab3 = st.tabs(["🔍 Búsqueda de Observaciones", "📋 Consulta General SQL", "📊 Dashboard & Métricas"])
+tab1, tab2, tab3 = st.tabs(["🔍 Búsqueda de Observaciones", "📋 Consulta General SQL", "📊 Dashboard Completo & Métricas"])
 
 # ---------------------------------------------------------
 # PESTAÑA 1: BÚSQUEDA DE OBSERVACIONES
@@ -83,7 +125,7 @@ with tab1:
     if tabla_existe("observaciones"):
         conn = obtener_conexion_sql()
         try:
-            evaluadores_df = pd.read_sql_query('SELECT DISTINCT "Coordinador" FROM observaciones WHERE "Coordinador" IS NOT NULL AND "Coordinador" != "" ORDER BY "Coordinador"', conn)
+            evaluadores_df = pd.read_sql_query('SELECT DISTINCT "Coordinador" FROM observaciones WHERE "Coordinador" IS NOT NULL AND "Coordinador" NOT IN ("", "Sin Asignar") ORDER BY "Coordinador"', conn)
             lista_evaluadores += evaluadores_df['Coordinador'].tolist()
         except Exception:
             pass
@@ -100,7 +142,6 @@ with tab1:
             
             busqueda_semantica_exitosa = False
             
-            # 1. Intento de búsqueda vectorial si ChromaDB está listo
             if os.path.exists(CHROMA_PATH):
                 try:
                     from langchain_community.vectorstores import Chroma
@@ -118,8 +159,8 @@ with tab1:
                         if results:
                             st.success(f"Se encontraron {len(results)} observaciones relevantes:")
                             for idx, doc in enumerate(results, 1):
-                                exp = doc.metadata.get('expediente', 'N/A')
-                                coord = doc.metadata.get('evaluador', 'N/A')
+                                exp = doc.metadata.get('expediente', 'Sin información')
+                                coord = doc.metadata.get('evaluador', 'Sin Asignar')
                                 clasif = doc.metadata.get('clasificacion', 'General')
                                 with st.expander(f"📌 Resultado #{idx} | Expediente: {exp} | Evaluador: {coord}"):
                                     st.markdown(f"**Observación:**\n\n{doc.page_content}")
@@ -128,7 +169,6 @@ with tab1:
                 except Exception:
                     busqueda_semantica_exitosa = False
             
-            # 2. Formato estructurado por tarjetas desplegables mediante consulta SQL
             if not busqueda_semantica_exitosa:
                 query_sql = f'SELECT * FROM observaciones WHERE "{col_obs}" LIKE ?'
                 params = [f"%{query.strip()}%"]
@@ -146,10 +186,10 @@ with tab1:
                     st.success(f"Se encontraron {len(df_res)} observaciones relacionadas:")
                     for idx, row in df_res.iterrows():
                         num_res = idx + 1
-                        exp = row.get('Expediente', 'Sin Expediente')
-                        coord = row.get('Coordinador', row.get('Especialista', 'N/A'))
-                        proyecto = row.get('Titulo Proyecto', row.get('Proyecto', 'N/A'))
-                        empresa = row.get('Empresa', 'N/A')
+                        exp = row.get('Expediente', 'Sin información')
+                        coord = row.get('Coordinador', 'Sin Asignar')
+                        proyecto = row.get('Titulo Proyecto', row.get('Proyecto', 'Sin información'))
+                        empresa = row.get('Empresa', 'Sin información')
                         obs_texto = row.get(col_obs, 'Sin detalle')
                         
                         with st.expander(f"📌 Resultado #{num_res} | Expediente: {exp} | Evaluador: {coord}"):
@@ -171,28 +211,107 @@ with tab2:
         conn = obtener_conexion_sql()
         df_preview = pd.read_sql_query("SELECT * FROM observaciones LIMIT 100", conn)
         conn.close()
-        st.write("Mostrando los primeros 100 registros:")
+        st.write("Mostrando los primeros 100 registros normalizados:")
         st.dataframe(df_preview, use_container_width=True)
     else:
         st.info("La tabla 'observaciones' aún no está construida en SQLite.")
 
 # ---------------------------------------------------------
-# PESTAÑA 3: DASHBOARD & MÉTRICAS
+# PESTAÑA 3: DASHBOARD COMPLETO & MÉTRICAS
 # ---------------------------------------------------------
 with tab3:
-    st.header("Estadísticas y Carga de Trabajo")
+    st.header("📊 Dashboard General de Estadísticas y Control")
+    
     if tabla_existe("observaciones"):
         conn = obtener_conexion_sql()
-        try:
-            df_metrics = pd.read_sql_query('SELECT "Coordinador", COUNT(*) as Cantidad FROM observaciones WHERE "Coordinador" IS NOT NULL AND "Coordinador" != "" GROUP BY "Coordinador" ORDER BY Cantidad DESC LIMIT 15', conn)
-            if not df_metrics.empty:
-                st.subheader("👥 Carga de Trabajo por Coordinador / Líder")
-                st.bar_chart(df_metrics.set_index("Coordinador"))
-            else:
-                st.info("No hay registros disponibles para calcular las métricas.")
-        except Exception as e:
-            st.error(f"Error al calcular métricas: {e}")
-        finally:
-            conn.close()
+        df_all = pd.read_sql_query("SELECT * FROM observaciones", conn)
+        conn.close()
+        
+        # 1. TARJETAS DE INDICADORES CLAVE (KPIs)
+        col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
+        
+        total_obs = len(df_all)
+        total_expedientes = df_all['Expediente'].nunique() if 'Expediente' in df_all.columns else 0
+        total_evaluadores = df_all[df_all['Coordinador'] != 'Sin Asignar']['Coordinador'].nunique() if 'Coordinador' in df_all.columns else 0
+        total_empresas = df_all['Empresa'].nunique() if 'Empresa' in df_all.columns else 0
+        
+        col_kpi1.metric("Total Observaciones", f"{total_obs:,}")
+        col_kpi2.metric("Expedientes Evaluados", f"{total_expedientes:,}")
+        col_kpi3.metric("Evaluadores Activos", f"{total_evaluadores}")
+        col_kpi4.metric("Empresas / Titulares", f"{total_empresas:,}")
+        
+        st.markdown("---")
+        
+        # 2. GRÁFICOS INTERACTIVOS (FILA 1)
+        col_chart1, col_chart2 = st.columns(2)
+        
+        with col_chart1:
+            st.subheader("👥 Carga de Trabajo por Evaluador")
+            if 'Coordinador' in df_all.columns:
+                df_eval = df_all[df_all['Coordinador'] != 'Sin Asignar']['Coordinador'].value_counts().reset_index()
+                df_eval.columns = ['Evaluador', 'Cantidad']
+                
+                fig_eval = px.bar(
+                    df_eval.head(10), 
+                    x='Cantidad', 
+                    y='Evaluador', 
+                    orientation='h',
+                    color='Cantidad',
+                    color_continuous_scale='Blues',
+                    text='Cantidad'
+                )
+                fig_eval.update_layout(yaxis={'categoryorder': 'total ascending'}, showlegend=False)
+                st.plotly_chart(fig_eval, use_container_width=True)
+                
+        with col_chart2:
+            st.subheader("🏷️ Distribución por Especialidad / Tema")
+            col_tema = 'Especialidad Final' if 'Especialidad Final' in df_all.columns else None
+            if col_tema:
+                df_tema = df_all[col_tema].value_counts().reset_index()
+                df_tema.columns = ['Especialidad', 'Cantidad']
+                
+                fig_tema = px.pie(
+                    df_tema.head(8), 
+                    names='Especialidad', 
+                    values='Cantidad',
+                    hole=0.4,
+                    color_discrete_sequence=px.colors.qualitative.Pastel
+                )
+                st.plotly_chart(fig_tema, use_container_width=True)
+
+        # 3. GRÁFICOS INTERACTIVOS (FILA 2)
+        col_chart3, col_chart4 = st.columns(2)
+        
+        with col_chart3:
+            st.subheader("🏢 Top 10 Empresas con más Observaciones")
+            if 'Empresa' in df_all.columns:
+                df_emp = df_all[df_all['Empresa'] != 'Sin información']['Empresa'].value_counts().reset_index()
+                df_emp.columns = ['Empresa', 'Cantidad']
+                
+                fig_emp = px.bar(
+                    df_emp.head(10), 
+                    x='Empresa', 
+                    y='Cantidad',
+                    color='Cantidad',
+                    color_continuous_scale='Reds'
+                )
+                fig_emp.update_xaxes(tickangle=45)
+                st.plotly_chart(fig_emp, use_container_width=True)
+                
+        with col_chart4:
+            st.subheader("📂 Top Expedientes con Mayor Número de Hallazgos")
+            if 'Expediente' in df_all.columns:
+                df_exp = df_all[df_all['Expediente'] != 'Sin información']['Expediente'].value_counts().reset_index()
+                df_exp.columns = ['Expediente', 'Cantidad']
+                
+                fig_exp = px.bar(
+                    df_exp.head(10), 
+                    x='Expediente', 
+                    y='Cantidad',
+                    color='Cantidad',
+                    color_continuous_scale='Greens'
+                )
+                fig_exp.update_xaxes(tickangle=45)
+                st.plotly_chart(fig_exp, use_container_width=True)
     else:
-        st.info("La tabla de observaciones aún no está disponible.")
+        st.info("La tabla de observaciones aún no está disponible para generar el dashboard.")
