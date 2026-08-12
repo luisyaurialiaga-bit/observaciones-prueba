@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import os
+import re
 import unicodedata
 
 # Configuración de la página
@@ -20,16 +21,67 @@ def quitar_tildes(texto):
     return ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
 
 
+def contar_tildes(texto):
+    """Cuenta cuántos caracteres con tilde/diacrítico tiene el texto."""
+    return sum(1 for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) == 'Mn')
+
+
 def normalizar_nombres(serie):
     """
     Agrupa variantes de un mismo nombre que difieren solo en tildes/mayusculas
-    (ej. 'Iban' y 'Ibán') y las reemplaza a TODAS por la forma mas frecuente
-    de ese nombre en los datos -- asi no se pierden tildes si esa es la forma
-    correcta y mayoritaria, pero tampoco quedan como "personas" distintas.
+    (ej. 'Iban' y 'Ibán') y las reemplaza a TODAS por una unica forma canonica.
+
+    Se prioriza la variante CON MAS TILDES (normalmente la ortografia
+    correcta), y solo se usa la frecuencia como desempate cuando dos
+    variantes tienen la misma cantidad de tildes (ej. diferencias de
+    mayusculas/minusculas). Esto evita que una version mal escrita pero
+    mas repetida (ej. 'IBAN' sin tilde, si aparece mas veces que 'IBÁN')
+    termine ganando por sobre la version correcta.
     """
     claves = serie.apply(lambda x: quitar_tildes(x).upper())
-    forma_canonica = serie.groupby(claves).agg(lambda s: s.value_counts().idxmax())
+
+    def elegir_forma(grupo):
+        conteos = grupo.value_counts()
+        variantes = conteos.index.tolist()
+        variantes_ordenadas = sorted(
+            variantes,
+            key=lambda v: (contar_tildes(v), conteos[v]),
+            reverse=True
+        )
+        return variantes_ordenadas[0]
+
+    forma_canonica = serie.groupby(claves).agg(elegir_forma)
     return claves.map(forma_canonica)
+
+
+MESES_ES = {
+    'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4, 'mayo': 5, 'junio': 6,
+    'julio': 7, 'agosto': 8, 'septiembre': 9, 'setiembre': 9, 'octubre': 10,
+    'noviembre': 11, 'diciembre': 12,
+}
+
+
+def parsear_fecha_es(texto):
+    """
+    Parsea fechas con formato tipo 'San Isidro, 07 de mayo de 2026' o
+    'Lima, 09 de febrero de 2022' (el nombre de la ciudad varia y se
+    ignora). pd.to_datetime no entiende este formato en español, por eso
+    se usa un parser propio.
+    """
+    if not isinstance(texto, str):
+        return pd.NaT
+    m = re.search(r'(\d{1,2})\s+de\s+([a-záéíóúñ]+)\s+de\s+(\d{4})', texto, re.IGNORECASE)
+    if not m:
+        return pd.NaT
+    dia, mes_txt, anio = m.groups()
+    mes = MESES_ES.get(quitar_tildes(mes_txt).lower())
+    if not mes:
+        return pd.NaT
+    try:
+        return pd.Timestamp(year=int(anio), month=mes, day=int(dia))
+    except ValueError:
+        return pd.NaT
+
 
 
 @st.cache_data(show_spinner="Cargando base de datos...")
@@ -321,7 +373,7 @@ with tab3:
         if col_fecha:
             st.markdown("**Evolución de observaciones en el tiempo**")
             df_fecha = df_all.copy()
-            df_fecha[col_fecha] = pd.to_datetime(df_fecha[col_fecha], errors='coerce')
+            df_fecha[col_fecha] = df_fecha[col_fecha].apply(parsear_fecha_es)
             df_fecha = df_fecha.dropna(subset=[col_fecha])
             if not df_fecha.empty:
                 df_mensual = df_fecha.set_index(col_fecha).resample('ME').size().reset_index()
