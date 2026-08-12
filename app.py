@@ -14,7 +14,6 @@ st.set_page_config(
 
 DB_SQL_PATH = "datos_its.db"
 EXCEL_PATH = "observaciones_clasificadas_FINAL_v33.xlsx"
-CHROMA_PATH = "chroma_db"
 
 def obtener_conexion_sql():
     return sqlite3.connect(DB_SQL_PATH)
@@ -63,7 +62,7 @@ def normalizar_nombre_evaluador(nombre):
     return nombre_limpio
 
 def construir_base_rapida_y_normalizada():
-    """Lee el Excel, aplica la normalización de datos y guardado en SQLite."""
+    """Lee el Excel, aplica la normalización de datos y guarda en SQLite."""
     if not os.path.exists(EXCEL_PATH):
         st.error(f"No se encontró el archivo Excel: {EXCEL_PATH}.")
         return False
@@ -86,7 +85,7 @@ def construir_base_rapida_y_normalizada():
     elif 'Especialista' in df.columns:
         df['Coordinador'] = df['Especialista'].apply(normalizar_nombre_evaluador)
     
-    # 3. Limpieza de resto de campos
+    # 3. Limpieza de otras columnas
     for col in ['Expediente', 'Especialidad Final', 'Empresa', 'Titulo Proyecto']:
         if col in df.columns:
             df[col] = df[col].fillna('Sin información').astype(str).str.strip()
@@ -140,65 +139,35 @@ with tab1:
             conn = obtener_conexion_sql()
             col_obs = obtener_columna_observacion(conn)
             
-            busqueda_semantica_exitosa = False
+            query_sql = f'SELECT * FROM observaciones WHERE "{col_obs}" LIKE ?'
+            params = [f"%{query.strip()}%"]
             
-            if os.path.exists(CHROMA_PATH):
-                try:
-                    from langchain_community.vectorstores import Chroma
-                    from langchain_community.embeddings import FastEmbedEmbeddings
+            if evaluador_filtro != "Todos":
+                query_sql += ' AND "Coordinador" = ?'
+                params.append(evaluador_filtro)
+            
+            query_sql += f" LIMIT {top_k}"
+            
+            df_res = pd.read_sql_query(query_sql, conn, params=params)
+            conn.close()
+            
+            if not df_res.empty:
+                st.success(f"Se encontraron {len(df_res)} observaciones relacionadas:")
+                for idx, row in df_res.iterrows():
+                    num_res = idx + 1
+                    exp = row.get('Expediente', 'Sin información')
+                    coord = row.get('Coordinador', 'Sin Asignar')
+                    proyecto = row.get('Titulo Proyecto', row.get('Proyecto', 'Sin información'))
+                    empresa = row.get('Empresa', 'Sin información')
+                    obs_texto = row.get(col_obs, 'Sin detalle')
                     
-                    with st.spinner("Buscando observaciones relevantes..."):
-                        embeddings = FastEmbedEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-                        vectorstore = Chroma(persist_directory=CHROMA_PATH, embedding_function=embeddings)
-                        
-                        search_kwargs = {"k": top_k}
-                        if evaluador_filtro != "Todos":
-                            search_kwargs["filter"] = {"evaluador": evaluador_filtro}
-                        
-                        results = vectorstore.similarity_search(query, **search_kwargs)
-                        if results:
-                            st.success(f"Se encontraron {len(results)} observaciones relevantes:")
-                            for idx, doc in enumerate(results, 1):
-                                exp = doc.metadata.get('expediente', 'Sin información')
-                                coord = doc.metadata.get('evaluador', 'Sin Asignar')
-                                clasif = doc.metadata.get('clasificacion', 'General')
-                                with st.expander(f"📌 Resultado #{idx} | Expediente: {exp} | Evaluador: {coord}"):
-                                    st.markdown(f"**Observación:**\n\n{doc.page_content}")
-                                    st.caption(f"Especialidad / Tema: {clasif}")
-                            busqueda_semantica_exitosa = True
-                except Exception:
-                    busqueda_semantica_exitosa = False
-            
-            if not busqueda_semantica_exitosa:
-                query_sql = f'SELECT * FROM observaciones WHERE "{col_obs}" LIKE ?'
-                params = [f"%{query.strip()}%"]
-                
-                if evaluador_filtro != "Todos":
-                    query_sql += ' AND "Coordinador" = ?'
-                    params.append(evaluador_filtro)
-                
-                query_sql += f" LIMIT {top_k}"
-                
-                df_res = pd.read_sql_query(query_sql, conn, params=params)
-                conn.close()
-                
-                if not df_res.empty:
-                    st.success(f"Se encontraron {len(df_res)} observaciones relacionadas:")
-                    for idx, row in df_res.iterrows():
-                        num_res = idx + 1
-                        exp = row.get('Expediente', 'Sin información')
-                        coord = row.get('Coordinador', 'Sin Asignar')
-                        proyecto = row.get('Titulo Proyecto', row.get('Proyecto', 'Sin información'))
-                        empresa = row.get('Empresa', 'Sin información')
-                        obs_texto = row.get(col_obs, 'Sin detalle')
-                        
-                        with st.expander(f"📌 Resultado #{num_res} | Expediente: {exp} | Evaluador: {coord}"):
-                            st.markdown(f"**Proyecto:** {proyecto}")
-                            st.markdown(f"**Empresa:** {empresa}")
-                            st.markdown("---")
-                            st.markdown(f"**Observación:**\n\n{obs_texto}")
-                else:
-                    st.info("No se encontraron observaciones que coincidan con la búsqueda.")
+                    with st.expander(f"📌 Resultado #{num_res} | Expediente: {exp} | Evaluador: {coord}"):
+                        st.markdown(f"**Proyecto:** {proyecto}")
+                        st.markdown(f"**Empresa:** {empresa}")
+                        st.markdown("---")
+                        st.markdown(f"**Observación:**\n\n{obs_texto}")
+            else:
+                st.info("No se encontraron observaciones que coincidan con la búsqueda.")
         else:
             st.warning("Por favor ingrese un texto de consulta.")
 
