@@ -16,6 +16,15 @@ PARQUET_PATH = "observaciones_clasificadas_FINAL_v33.parquet"
 EXCEL_PATH = "observaciones_clasificadas_FINAL_v33.xlsx"
 
 
+def valor_o_vacio(valor):
+    """Devuelve el valor como texto limpio, o '' si es NaN/nulo -- evita
+    que aparezca literalmente 'nan' en pantalla cuando una celda esta
+    vacia (algo muy comun en columnas como Subsanacion, con ~61% vacias)."""
+    if pd.isna(valor):
+        return ''
+    return str(valor).strip()
+
+
 def quitar_tildes(texto):
     """Quita tildes/diacríticos para poder comparar 'Iban' y 'Ibán' como el mismo nombre."""
     return ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
@@ -180,12 +189,55 @@ with tab1:
                     proyecto = row.get('Titulo Proyecto', row.get('Proyecto', 'Sin información'))
                     empresa = row.get('Empresa', 'Sin información')
                     obs_texto = row.get(col_obs, 'Sin detalle')
+                    fundamento = valor_o_vacio(row.get('Fundamento'))
+                    subsanacion = valor_o_vacio(row.get('Subsanacion'))
+                    item = valor_o_vacio(row.get('Item'))
+                    especialidad = valor_o_vacio(row.get('Especialidad Final'))
+                    fecha = valor_o_vacio(row.get('Fecha'))
+                    tipo_matriz = valor_o_vacio(row.get('Tipo Matriz'))
+                    informe = valor_o_vacio(row.get('Informe'))
+                    pagina = valor_o_vacio(row.get('Pagina'))
+                    tiene_imagen = valor_o_vacio(row.get('Tiene Imagen')).upper() == 'SI'
 
                     with st.expander(f"📌 Resultado #{num_res} | Expediente: {exp} | Evaluador: {coord}"):
+                        # Etiquetas rapidas de contexto
+                        etiquetas = []
+                        if especialidad:
+                            etiquetas.append(f"🏷️ {especialidad}")
+                        if tipo_matriz:
+                            etiquetas.append(f"📑 {tipo_matriz}")
+                        if fecha:
+                            etiquetas.append(f"📅 {fecha}")
+                        if item:
+                            etiquetas.append(f"📍 {item}")
+                        if tiene_imagen:
+                            etiquetas.append("🖼️ Con plano/figura")
+                        if etiquetas:
+                            st.caption(" &nbsp;|&nbsp; ".join(etiquetas))
+
                         st.markdown(f"**Proyecto:** {proyecto}")
                         st.markdown(f"**Empresa:** {empresa}")
                         st.markdown("---")
+
+                        if fundamento:
+                            st.markdown(f"**⚖️ Fundamento / Sustento legal:**\n\n{fundamento}")
+                            st.markdown("")
+
                         st.markdown(f"**Observación:**\n\n{obs_texto}")
+
+                        if subsanacion:
+                            st.markdown("")
+                            st.markdown(f"**✅ Cómo se subsanó:**\n\n{subsanacion}")
+
+                        # Referencia citable: numero de Informe oficial + pagina,
+                        # NO el nombre de archivo (los PDFs de SENACE traen nombres
+                        # como 'signed_signed_signed_..._stamped_Informe-...pdf',
+                        # inservibles para mostrar).
+                        if informe:
+                            ref_pagina = f" — página {pagina}" if pagina else ""
+                            st.caption(f"Fuente: {informe}{ref_pagina}")
+                        elif pagina:
+                            st.caption(f"Fuente: página {pagina} del informe")
             else:
                 st.info("No se encontraron observaciones que coincidan con la búsqueda.")
         else:
