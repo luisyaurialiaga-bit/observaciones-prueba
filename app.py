@@ -1,21 +1,264 @@
+"""
+app.py -- SIGO (Sistema de Inteligencia y Gestion de Observaciones), Sugle S.A.C.
+
+App publica sobre Supabase: las tres pestañas -- Busqueda, Consulta
+General y Dashboard -- leen todas de la misma tabla "observaciones" en
+Supabase (una sola fuente de verdad).
+
+Que incluye:
+    - "Busqueda de Observaciones": HIBRIDA, combina busqueda por
+      palabra exacta (Postgres full-text search) con busqueda por
+      significado (pgvector) contra la base completa en Supabase,
+      usando la funcion buscar_hibrido(). Incluye filtro por
+      especialidad y por evaluador, y un resumen de totales por
+      especialidad (funcion contar_busqueda()).
+    - "Consulta General" y "Dashboard" traen todas las filas de
+      Supabase (paginando de a 1000, el maximo por pedido de la API).
+    - Marca Sugle: colores, tipografia Calibri, logo y barra "SIGO".
+
+Antes de desplegar (Streamlit Community Cloud):
+    En Settings > Secrets de la app, pegar:
+
+        SUPABASE_URL = "https://jtujaaqnxvzipgdmkirr.supabase.co"
+        SUPABASE_ANON_KEY = "el JWT que empieza con eyJhbGci..."
+
+    Archivos que deben ir junto a este app.py en el repo:
+        - logo-sugle.png
+        - logo-sugle-claro.png (version del logo con texto en Lila,
+          para que se lea sobre el fondo morado oscuro de la barra)
+        - .streamlit/config.toml (con client.disableDataExport = true,
+          para ocultar el boton de descarga CSV de las tablas)
+        - temas_recurrentes.json (opcional -- si no esta, el Dashboard
+          muestra un aviso en vez de fallar)
+        - requirements.txt debe incluir: streamlit, supabase,
+          fastembed, pandas, openpyxl, plotly, pyarrow
+
+Uso local:
+    streamlit run app.py
+"""
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import base64
 import os
 import re
 import unicodedata
+from supabase import create_client
 
-# Configuración de la página
-st.set_page_config(
-    page_title="Sistema ITS SENACE",
-    page_icon="🛡️",
-    layout="wide"
+# ---------------------------------------------------------
+# Configuracion general
+# ---------------------------------------------------------
+st.set_page_config(page_title="Sistema ITS SENACE", page_icon="🛡️", layout="wide")
+
+# Reduce el espacio en blanco de arriba (Streamlit deja bastante margen
+# por defecto antes del contenido) para aprovechar mejor la pantalla.
+# Los colores/logo de marca de Sugle se agregan aparte, esto solo
+# ajusta el espaciado.
+st.markdown(
+    """
+    <style>
+        .block-container {
+            padding-top: 1.5rem;
+        }
+        /* El boton de "Download as CSV" YA NO se oculta por CSS aqui --
+        ese selector (button[title="Download as CSV"]) nunca funciono
+        de verdad, porque Streamlit no pone el texto como atributo
+        "title" del boton (es un tooltip que se genera aparte, fuera
+        del boton). La forma correcta y oficial de ocultarlo es la
+        opcion de configuracion "client.disableDataExport" en
+        .streamlit/config.toml -- ver ese archivo. */
+
+        /* -----------------------------------------------------
+        Marca Sugle: tipografia + fondo + botones.
+        OJO: esto NO toca los colores de los graficos del Dashboard
+        (esos se definen aparte en el codigo Python de cada grafico,
+        con color_continuous_scale, etc.) -- eso se deja intacto a
+        proposito, tal como se pidio.
+        ----------------------------------------------------- */
+
+        /* Tipografia de marca */
+        html, body, [class*="css"], .stApp, button, input, textarea, select {
+            font-family: Calibri, "Segoe UI", sans-serif !important;
+        }
+
+        /* Fondo de marca (Lila Sugle) */
+        .stApp {
+            background-color: #E5DBEB;
+        }
+        /* La barra superior de Streamlit (donde sale "Deploy") trae su
+        propio fondo blanco por defecto -- la hacemos transparente para
+        que se vea el mismo lila de fondo, sin una franja blanca arriba. */
+        header[data-testid="stHeader"] {
+            background-color: transparent;
+        }
+
+        /* Botones primarios (ej. "Buscar Observaciones") */
+        .stButton > button[kind="primary"] {
+            background-color: #A02671; /* Morado Barney */
+            color: #FFFFFF;
+            border: none;
+        }
+        .stButton > button[kind="primary"]:hover {
+            background-color: #3F1840; /* Morado Vino */
+            color: #FFFFFF;
+        }
+
+        /* Botones secundarios */
+        .stButton > button[kind="secondary"] {
+            background-color: #673366; /* Morado Uva */
+            color: #FFFFFF;
+            border: none;
+        }
+        .stButton > button[kind="secondary"]:hover {
+            background-color: #3F1840; /* Morado Vino */
+            color: #FFFFFF;
+        }
+
+        /* Barra superior de marca "SIGO". El truco de
+        left:50%/margin-left:-50vw hace que la barra ocupe todo el
+        ancho de la pantalla aunque este dentro del contenedor central
+        de Streamlit (que tiene su propio margen a los lados). */
+        .sigo-header {
+            position: relative;
+            left: 50%;
+            right: 50%;
+            margin-left: -50vw;
+            margin-right: -50vw;
+            width: 100vw;
+            margin-top: -1.5rem;
+            margin-bottom: 1.5rem;
+            background-color: #3F1840; /* Morado Vino */
+            padding: 14px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-sizing: border-box;
+        }
+        .sigo-header .sigo-marca {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .sigo-header .sigo-marca img {
+            height: 36px;
+        }
+        .sigo-header .sigo-marca span {
+            color: #FFFFFF;
+            font-weight: 700;
+            font-size: 1.38rem;
+            letter-spacing: 0.5px;
+        }
+
+        /* Firma discreta, fija abajo a la derecha en toda la pantalla */
+        .sigo-firma {
+            position: fixed;
+            bottom: 6px;
+            right: 12px;
+            font-style: italic;
+            font-size: 0.79rem;
+            color: rgba(63, 24, 64, 0.25); /* Morado Vino, muy tenue */
+            z-index: 9999;
+            pointer-events: none;
+        }
+        .sigo-header .sigo-derecha {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .sigo-header .sigo-tagline {
+            color: #E5DBEB; /* Lila Sugle */
+            font-size: 0.95rem;
+        }
+        .sigo-header .sigo-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background-color: #A02671; /* Morado Barney */
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+
+        /* Pestañas: puntito antes del texto + color activo Morado
+        Barney (en vez del rojo por defecto de Streamlit), imitando el
+        mockup de Sugle. */
+        button[data-baseweb="tab"] p {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        button[data-baseweb="tab"] p::before {
+            content: "";
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            min-width: 6px;
+            border-radius: 50%;
+            background-color: #B9A9C4;
+        }
+        button[data-baseweb="tab"][aria-selected="true"] p {
+            color: #A02671 !important;
+        }
+        button[data-baseweb="tab"][aria-selected="true"] p::before {
+            background-color: #A02671;
+        }
+        [data-baseweb="tab-highlight"] {
+            background-color: #A02671 !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
-PARQUET_PATH = "observaciones_clasificadas_FINAL_v33.parquet"
-EXCEL_PATH = "observaciones_clasificadas_FINAL_v33.xlsx"
+# Color de fondo de marca (Lila Sugle) aplicado al "papel" y area de
+# trazado de TODOS los graficos del Dashboard, para que no quede una
+# caja blanca dentro de la pagina lila. OJO: esto es solo el fondo --
+# no toca los colores de barras/lineas/torta de cada grafico (esos se
+# definen aparte, con color_continuous_scale, color_discrete_map, etc.)
+COLOR_FONDO_GRAFICOS = "#E5DBEB"
 
 
+def aplicar_fondo_marca(fig):
+    fig.update_layout(
+        paper_bgcolor=COLOR_FONDO_GRAFICOS,
+        plot_bgcolor=COLOR_FONDO_GRAFICOS,
+    )
+    return fig
+
+
+MODELO_EMBEDDING = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
+
+# ---------------------------------------------------------
+# Conexion a Supabase + modelo de embeddings (para la pestaña Busqueda)
+# ---------------------------------------------------------
+@st.cache_resource(show_spinner="Conectando a la base de datos...")
+def conectar_supabase():
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_ANON_KEY"]
+    return create_client(url, key)
+
+
+@st.cache_resource(show_spinner="Cargando el modelo de busqueda semantica (primera vez tarda un poco)...")
+def cargar_modelo_embeddings():
+    from fastembed import TextEmbedding
+    return TextEmbedding(model_name=MODELO_EMBEDDING)
+
+
+def vector_a_texto_postgres(vector):
+    """pgvector espera el vector como texto tipo '[0.1,0.2,...]' para
+    poder convertirlo (cast) al tipo vector(384) declarado en la
+    funcion buscar_hibrido(). Un JSON crudo no siempre castea bien."""
+    return "[" + ",".join(f"{v:.8f}" for v in vector) + "]"
+
+
+# ---------------------------------------------------------
+# Utilidades para Consulta General / Dashboard
+# ---------------------------------------------------------
 def valor_o_vacio(valor):
     """Devuelve el valor como texto limpio, o '' si es NaN/nulo -- evita
     que aparezca literalmente 'nan' en pantalla cuando una celda esta
@@ -33,7 +276,6 @@ def formatear_parrafos(texto):
       - vinetas '•'
       - incisos tipo 'a)', 'b)', 'c)'... que empiezan una clausula nueva
         (precedidos de un punto/espacio y seguidos de mayuscula)
-    Probado contra 300 textos reales sin generar cortes falsos.
     """
     if not texto:
         return texto
@@ -58,13 +300,8 @@ def normalizar_nombres(serie):
     """
     Agrupa variantes de un mismo nombre que difieren solo en tildes/mayusculas
     (ej. 'Iban' y 'Ibán') y las reemplaza a TODAS por una unica forma canonica.
-
-    Se prioriza la variante CON MAS TILDES (normalmente la ortografia
-    correcta), y solo se usa la frecuencia como desempate cuando dos
-    variantes tienen la misma cantidad de tildes (ej. diferencias de
-    mayusculas/minusculas). Esto evita que una version mal escrita pero
-    mas repetida (ej. 'IBAN' sin tilde, si aparece mas veces que 'IBÁN')
-    termine ganando por sobre la version correcta.
+    Se prioriza la variante CON MAS TILDES, y solo se usa la frecuencia como
+    desempate cuando dos variantes tienen la misma cantidad de tildes.
     """
     claves = serie.apply(lambda x: quitar_tildes(x).upper())
 
@@ -90,12 +327,7 @@ MESES_ES = {
 
 
 def parsear_fecha_es(texto):
-    """
-    Parsea fechas con formato tipo 'San Isidro, 07 de mayo de 2026' o
-    'Lima, 09 de febrero de 2022' (el nombre de la ciudad varia y se
-    ignora). pd.to_datetime no entiende este formato en español, por eso
-    se usa un parser propio.
-    """
+    """Parsea fechas con formato tipo 'San Isidro, 07 de mayo de 2026'."""
     if not isinstance(texto, str):
         return pd.NaT
     m = re.search(r'(\d{1,2})\s+de\s+([a-záéíóúñ]+)\s+de\s+(\d{4})', texto, re.IGNORECASE)
@@ -111,28 +343,90 @@ def parsear_fecha_es(texto):
         return pd.NaT
 
 
+# Nombres de columna en Supabase (snake_case) -> nombres que ya usaba
+# el Excel (con los que esta escrito el resto del codigo de Consulta
+# General / Dashboard). Renombrando aca, no hay que tocar nada mas
+# abajo en esas dos pestañas.
+RENOMBRAR_SUPABASE = {
+    "n": "N", "expediente": "Expediente", "titulo_proyecto": "Titulo Proyecto",
+    "unidad_proyecto": "Unidad Proyecto", "tipo_estudio": "Tipo Estudio",
+    "empresa": "Empresa", "informe": "Informe", "fecha": "Fecha",
+    "coordinador": "Coordinador", "lider_proyecto": "Lider Proyecto",
+    "esp_legal": "Esp. Legal", "esp_sig": "Esp. SIG",
+    "esp_descrip_proyectos": "Esp. Descrip. Proyectos", "esp_fisico": "Esp. Fisico",
+    "esp_biologico": "Esp. Biologico", "esp_social": "Esp. Social",
+    "otros_evaluadores": "Otros Evaluadores", "archivo": "Archivo",
+    "pagina": "Pagina", "tipo_matriz": "Tipo Matriz", "n_obs": "N Obs",
+    "requisito": "Requisito", "item": "Item", "entidad": "Entidad",
+    "fundamento": "Fundamento", "observacion": "Observacion",
+    "subsanacion": "Subsanacion", "subsana_sino": "Subsana",
+    "tiene_imagen": "Tiene Imagen", "ref_imagen": "Ref Imagen",
+    "especialidad_final": "Especialidad Final", "metodo_clasificacion": "Metodo Clasificacion",
+}
 
-@st.cache_data(show_spinner="Cargando base de datos...")
-def cargar_datos():
-    if os.path.exists(PARQUET_PATH):
-        df = pd.read_parquet(PARQUET_PATH)
-    elif os.path.exists(EXCEL_PATH):
-        df = pd.read_excel(EXCEL_PATH)
-    else:
+# Columnas a pedirle a Supabase -- todas menos "embedding" (384 numeros
+# por fila, no hace falta para estas dos pestañas y solo pesaria mas
+# la descarga) y "id"/"creado_en" (no se usan en Consulta General ni
+# Dashboard).
+COLUMNAS_SUPABASE = ",".join(RENOMBRAR_SUPABASE.keys())
+
+
+@st.cache_data(show_spinner="Cargando base de datos desde Supabase (Consulta General / Dashboard)...", ttl=600)
+def cargar_datos_supabase(_supabase):
+    """Trae TODAS las filas de la tabla observaciones, paginando de a
+    1000 (limite por pedido de la API de Supabase/PostgREST). El
+    guion bajo en '_supabase' es a proposito: le dice a st.cache_data
+    que no intente usar ese argumento para decidir si el cache sigue
+    valido (un cliente de Supabase no se puede "hashear")."""
+    filas = []
+    inicio = 0
+    LOTE = 1000
+    while True:
+        resp = (
+            _supabase.table("observaciones")
+            .select(COLUMNAS_SUPABASE)
+            .range(inicio, inicio + LOTE - 1)
+            .execute()
+        )
+        lote = resp.data or []
+        filas.extend(lote)
+        if len(lote) < LOTE:
+            break
+        inicio += LOTE
+
+    if not filas:
         return None
 
-    # Identificar columna de observación
+    df = pd.DataFrame(filas).rename(columns=RENOMBRAR_SUPABASE)
+    return limpiar_dataframe(df)
+
+
+TEMAS_JSON_PATH = "temas_recurrentes.json"
+
+
+@st.cache_data(show_spinner=False)
+def cargar_temas_recurrentes():
+    """Lee temas_recurrentes.json (generado aparte por
+    descubrir_temas_recurrentes.py) si existe. Devuelve None si todavia
+    no se genero -- la pestaña de Dashboard muestra un aviso en ese caso
+    en vez de fallar."""
+    import json as _json
+    if not os.path.exists(TEMAS_JSON_PATH):
+        return None
+    with open(TEMAS_JSON_PATH, encoding="utf-8") as f:
+        return _json.load(f)
+
+
+def limpiar_dataframe(df):
     col_obs = "Observacion"
     for col in ["Observación", "OBSERVACION", "Observacion", "observacion"]:
         if col in df.columns:
             col_obs = col
             break
 
-    # Limpieza básica
     df[col_obs] = df[col_obs].astype(str).str.strip()
     df = df[df[col_obs].notna() & (df[col_obs] != "") & (df[col_obs].str.lower() != "nan")].copy()
 
-    # Normalizar Coordinador / Especialista
     if 'Coordinador' not in df.columns:
         if 'Especialista' in df.columns:
             df['Coordinador'] = df['Especialista']
@@ -142,16 +436,29 @@ def cargar_datos():
     df['Coordinador'] = df['Coordinador'].fillna('Sin Asignar').astype(str).str.strip().str.title()
     df['Coordinador'] = df['Coordinador'].replace({'Nan': 'Sin Asignar', 'None': 'Sin Asignar', '': 'Sin Asignar'})
 
-    # Unificar variantes del mismo nombre (con/sin tilde, mayus/minus) que
-    # antes se contaban como personas distintas.
     mask_asignado = df['Coordinador'] != 'Sin Asignar'
     if mask_asignado.any():
         df.loc[mask_asignado, 'Coordinador'] = normalizar_nombres(df.loc[mask_asignado, 'Coordinador'])
 
+    # ALIAS_COORDINADOR: casos donde la MISMA persona aparece con
+    # nombres de distinta longitud (ej. con o sin segundo nombre) --
+    # normalizar_nombres() no los agrupa porque no son la misma cadena
+    # salvo tildes/mayusculas, hace falta el alias manual. Se mapea al
+    # nombre MAS COMPLETO como forma canonica.
+    ALIAS_COORDINADOR = {
+        'Marco Tello Cochachez': 'Marco Antonio Tello Cochachez',
+    }
+    df['Coordinador'] = df['Coordinador'].replace(ALIAS_COORDINADOR)
+
     for col in ['Expediente', 'Especialidad Final', 'Empresa', 'Titulo Proyecto']:
         if col in df.columns:
-            df[col] = df[col].fillna('Sin información').astype(str).str.strip()
-            # Tambien normalizamos nombres de empresa por la misma razon
+            # "Especialidad Final" en blanco significa que el motor de
+            # reglas no logro asignarle una categoria -- "Sin clasificar"
+            # es el termino correcto (no "Sin informacion", que suena a
+            # que falta un dato de captura, cosa distinta).
+            relleno = 'Sin clasificar' if col == 'Especialidad Final' else 'Sin información'
+            df[col] = df[col].fillna(relleno).astype(str).str.strip()
+            df.loc[df[col] == '', col] = relleno
             if col == 'Empresa':
                 mask_emp = df[col] != 'Sin información'
                 if mask_emp.any():
@@ -160,14 +467,59 @@ def cargar_datos():
     return df, col_obs
 
 
-# Encabezado Principal
-st.title("🛡️ Sistema de Control de Calidad & Inteligencia ITS SENACE")
-st.caption("Matriz de Observaciones Clasificadas - Base Histórica Normalizada")
+# ---------------------------------------------------------
+# Encabezado principal
+# ---------------------------------------------------------
+def _logo_sugle_base64():
+    """Lee logo-sugle-claro.png (debe estar en la misma carpeta que
+    este archivo) y lo devuelve codificado en base64, para incrustarlo
+    directo en el HTML del encabezado -- asi no depende de una ruta de
+    archivo que se pueda romper al copiar la app a otra carpeta.
 
-datos = cargar_datos()
+    Es una version del logo original (logo-sugle.png) con el texto
+    "SUGLE" / "Sustainable Global Engineering" recoloreado a Lila
+    (#E5DBEB) -- en negro/gris oscuro original se perdia contra el
+    fondo morado oscuro de la barra. Los 3 anillos de color (rojo,
+    azul, verde) se dejaron igual, esos si se veian bien."""
+    try:
+        with open("logo-sugle-claro.png", "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except FileNotFoundError:
+        return None
+
+
+_logo_b64 = _logo_sugle_base64()
+_logo_html = (
+    f'<img src="data:image/png;base64,{_logo_b64}">'
+    if _logo_b64 else ""
+)
+
+st.markdown(
+    f"""
+    <div class="sigo-header">
+        <div class="sigo-marca">
+            {_logo_html}
+            <span>SIGO</span>
+        </div>
+        <div class="sigo-derecha">
+            <span class="sigo-tagline">Sistema de Inteligencia y Gestión de Observaciones</span>
+            <div class="sigo-avatar">SG</div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.caption("Matriz de observaciones clasificadas · Base histórica normalizada de expedientes ITS")
+
+st.markdown('<div class="sigo-firma">jlya</div>', unsafe_allow_html=True)
+
+supabase = conectar_supabase()
+datos = cargar_datos_supabase(supabase)
 
 if datos is None:
-    st.error(f"⚠️ No se encontró '{PARQUET_PATH}' ni '{EXCEL_PATH}' en la raíz del repositorio. Por favor asegúrate de subir alguno a GitHub.")
+    st.error("⚠️ No se pudo cargar información desde Supabase (la tabla respondió vacía). "
+             "Verifica que la migración de datos se haya completado.")
     st.stop()
 
 df_all, col_obs = datos
@@ -175,93 +527,140 @@ df_all, col_obs = datos
 tab1, tab2, tab3 = st.tabs(["🔍 Búsqueda de Observaciones", "📋 Consulta General", "📊 Dashboard Completo & Métricas"])
 
 # ---------------------------------------------------------
-# PESTAÑA 1: BÚSQUEDA DE OBSERVACIONES
+# PESTAÑA 1: BÚSQUEDA HÍBRIDA (Supabase + IA)
 # ---------------------------------------------------------
 with tab1:
-    st.header("Búsqueda Avanzada de Observaciones")
-    query = st.text_input("Ingrese la consulta o temática a buscar:", placeholder="Ej: bofedal impacto, calidad de aire, plan de participacion ciudadana...")
+    st.header("Búsqueda Avanzada de Observaciones (palabra clave + IA)")
 
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        top_k = st.slider("Cantidad de resultados:", min_value=5, max_value=50, value=10)
+    # Envolver los campos en un st.form hace que presionar Enter en
+    # cualquiera de ellos dispare la busqueda -- Streamlit lo hace
+    # automaticamente para formularios, sin tener que programar nada
+    # aparte para detectar la tecla Enter.
+    with st.form("form_busqueda"):
+        query = st.text_input(
+            "Ingrese la consulta o temática a buscar:",
+            placeholder="Ej: bofedal impacto, calidad de aire, plan de participación ciudadana..."
+        )
 
-    lista_especialidades = ["Todas"] + sorted([e for e in df_all['Especialidad Final'].dropna().unique() if e])
+        col1, col2, col3 = st.columns([1, 2, 2])
+        with col1:
+            top_k = st.slider("Cantidad de resultados:", min_value=5, max_value=50, value=10)
+        with col2:
+            especialidad_filtro = st.text_input(
+                "Filtrar por especialidad (opcional, dejar vacío = todas):",
+                placeholder="Ej: Fisico, Social, Biologico..."
+            )
+        with col3:
+            evaluador_filtro = st.text_input(
+                "Filtrar por evaluador (opcional, dejar vacío = todos):",
+                placeholder="Ej: Carlos Eduardo Moya Sulca..."
+            )
 
-    with col2:
-        especialidad_filtro = st.selectbox("Filtrar por Especialidad:", lista_especialidades)
+        buscar = st.form_submit_button("Buscar Observaciones", type="primary")
 
-    if st.button("Buscar Observaciones", type="primary"):
-        if query.strip():
-            # Busqueda por palabras: TODAS las palabras ingresadas deben
-            # aparecer (en cualquier orden), no la frase exacta completa.
-            # Ej: "bofedal impacto" encuentra observaciones que mencionen
-            # ambas palabras, aunque esten separadas en el texto.
-            palabras = [p for p in query.strip().split() if p]
+    if buscar:
+        if not query.strip():
+            st.warning("Por favor ingrese un texto de consulta.")
+        else:
+            with st.spinner("Convirtiendo tu búsqueda en coordenadas de significado..."):
+                modelo = cargar_modelo_embeddings()
+                vector_consulta = list(modelo.embed([query]))[0].tolist()
 
-            texto_busqueda = df_all[col_obs].fillna('')
-            if 'Fundamento' in df_all.columns:
-                # Tambien se busca en el Fundamento, porque a veces el
-                # termino buscado aparece ahi y no literalmente en la
-                # Observacion.
-                texto_busqueda = texto_busqueda + ' ' + df_all['Fundamento'].fillna('')
+            with st.spinner("Consultando la base (texto + IA)..."):
+                resultado = supabase.rpc("buscar_hibrido", {
+                    "consulta_texto": query,
+                    "consulta_vector": vector_a_texto_postgres(vector_consulta),
+                    "filtro_especialidad": especialidad_filtro.strip() or None,
+                    "cantidad": top_k,
+                    "filtro_evaluador": evaluador_filtro.strip() or None,
+                }).execute()
 
-            mask = pd.Series(True, index=df_all.index)
-            for palabra in palabras:
-                mask = mask & texto_busqueda.str.contains(re.escape(palabra), case=False, na=False)
+            filas = resultado.data or []
 
-            if especialidad_filtro != "Todas":
-                mask = mask & (df_all['Especialidad Final'] == especialidad_filtro)
+            if not filas:
+                st.info("No se encontraron observaciones que coincidan con la búsqueda.")
+            else:
+                # Cuenta el total real de coincidencias por texto (sin el
+                # limite "cantidad" que usa buscar_hibrido) para mostrar
+                # "encontrados en total" + desglose por especialidad,
+                # ademas de la lista de resultados de abajo (que sigue
+                # limitada a top_k, ordenada por relevancia combinada).
+                total_encontrados = None
+                desglose_especialidad = []
+                try:
+                    conteo = supabase.rpc("contar_busqueda", {
+                        "consulta_texto": query,
+                        "filtro_especialidad": especialidad_filtro.strip() or None,
+                        "filtro_evaluador": evaluador_filtro.strip() or None,
+                    }).execute()
+                    desglose_especialidad = conteo.data or []
+                    total_encontrados = sum(f["cantidad"] for f in desglose_especialidad)
+                except Exception:
+                    pass  # si la funcion contar_busqueda aun no existe en Supabase, seguimos sin el resumen
 
-            total_encontradas = mask.sum()
-            df_res = df_all[mask].head(top_k)
-
-            if not df_res.empty:
-                if total_encontradas > len(df_res):
-                    st.success(f"Se encontraron **{total_encontradas}** observaciones en total — mostrando las primeras {len(df_res)}:")
-                else:
-                    st.success(f"Se encontraron **{total_encontradas}** observaciones en total:")
-
-                # Desglose por especialidad de TODAS las coincidencias (no
-                # solo las que se muestran), para ver de un vistazo donde
-                # se concentra el tema buscado. Solo tiene sentido cuando
-                # no se filtro ya por una especialidad especifica.
-                if especialidad_filtro == "Todas" and 'Especialidad Final' in df_all.columns:
-                    conteo_especialidad = df_all.loc[mask, 'Especialidad Final'].value_counts()
-                    resumen = " &nbsp;|&nbsp; ".join(
-                        f"{esp} ({cant})" for esp, cant in conteo_especialidad.items()
+                if total_encontrados:
+                    mostrando = min(len(filas), top_k)
+                    st.success(
+                        f"Se encontraron **{total_encontrados}** observaciones en total "
+                        f"— mostrando las primeras **{mostrando}**:"
                     )
-                    st.caption(f"Por especialidad: {resumen}")
+                    texto_desglose = " &nbsp;|&nbsp; ".join(
+                        f"{f['especialidad_final']} ({f['cantidad']})" for f in desglose_especialidad
+                    )
+                    st.markdown(f"Por especialidad: {texto_desglose}")
+                else:
+                    # No hubo coincidencia EXACTA de texto para "total"
+                    # (por eso contar_busqueda no devolvio nada) -- paso
+                    # normal cuando la busqueda encontro resultados solo
+                    # por significado (IA), no porque la palabra literal
+                    # este en el texto (ej: "fragmentacion" sin que esa
+                    # palabra exacta aparezca en ninguna observacion).
+                    # Igual mostramos el desglose por especialidad, pero
+                    # calculado sobre los resultados que si se muestran.
+                    conteo_mostrados = {}
+                    for f in filas:
+                        esp = f.get("especialidad_final") or "Sin clasificar"
+                        conteo_mostrados[esp] = conteo_mostrados.get(esp, 0) + 1
+                    st.success(
+                        f"Se encontraron **{len(filas)}** observaciones "
+                        f"(por significado, sin coincidencia exacta de texto):"
+                    )
+                    texto_desglose = " &nbsp;|&nbsp; ".join(
+                        f"{esp} ({cant})" for esp, cant in sorted(conteo_mostrados.items(), key=lambda x: -x[1])
+                    )
+                    st.markdown(f"Por especialidad: {texto_desglose}")
 
-                for idx, row in df_res.reset_index().iterrows():
-                    num_res = idx + 1
-                    exp = row.get('Expediente', 'Sin información')
-                    coord = row.get('Coordinador', 'Sin Asignar')
-                    proyecto = row.get('Titulo Proyecto', row.get('Proyecto', 'Sin información'))
-                    empresa = row.get('Empresa', 'Sin información')
-                    obs_texto = row.get(col_obs, 'Sin detalle')
-                    fundamento = valor_o_vacio(row.get('Fundamento'))
-                    subsanacion = valor_o_vacio(row.get('Subsanacion'))
-                    item = valor_o_vacio(row.get('Item'))
-                    especialidad = valor_o_vacio(row.get('Especialidad Final'))
-                    fecha = valor_o_vacio(row.get('Fecha'))
-                    tipo_matriz = valor_o_vacio(row.get('Tipo Matriz'))
-                    informe = valor_o_vacio(row.get('Informe'))
-                    pagina = valor_o_vacio(row.get('Pagina'))
-                    tiene_imagen = valor_o_vacio(row.get('Tiene Imagen')).upper() == 'SI'
+                for i, fila in enumerate(filas, 1):
+                    exp = fila.get("expediente") or "Sin información"
+                    empresa = fila.get("empresa") or "Sin información"
+                    proyecto = fila.get("titulo_proyecto") or "Sin información"
+                    especialidad = fila.get("especialidad_final") or ""
+                    coordinador = fila.get("coordinador") or ""
+                    item = fila.get("item") or ""
+                    fundamento = fila.get("fundamento") or ""
+                    observacion = fila.get("observacion") or "Sin detalle"
+                    subsanacion = fila.get("subsanacion") or ""
+                    informe = fila.get("informe") or ""
+                    pagina = fila.get("pagina") or ""
 
-                    with st.expander(f"📌 Resultado #{num_res} | Expediente: {exp} | Evaluador: {coord}"):
-                        # Etiquetas rapidas de contexto
+                    score_texto = fila.get("score_texto")
+                    score_semantico = fila.get("score_semantico")
+                    score_combinado = fila.get("score_combinado")
+
+                    with st.expander(f"📌 Resultado #{i} | Expediente: {exp}" + (f" | Evaluador: {coordinador}" if coordinador else "")):
                         etiquetas = []
                         if especialidad:
                             etiquetas.append(f"🏷️ {especialidad}")
-                        if tipo_matriz:
-                            etiquetas.append(f"📑 {tipo_matriz}")
-                        if fecha:
-                            etiquetas.append(f"📅 {fecha}")
+                        if coordinador:
+                            etiquetas.append(f"👤 {coordinador}")
                         if item:
                             etiquetas.append(f"📍 {item}")
-                        if tiene_imagen:
-                            etiquetas.append("🖼️ Con plano/figura")
+                        if score_texto:
+                            etiquetas.append(f"🔤 relevancia texto: {score_texto:.3f}")
+                        if score_semantico is not None:
+                            etiquetas.append(f"🧠 relevancia semántica: {score_semantico:.3f}")
+                        if score_combinado is not None:
+                            etiquetas.append(f"🎯 relevancia combinada: {score_combinado:.3f}")
                         if etiquetas:
                             st.caption(" &nbsp;|&nbsp; ".join(etiquetas))
 
@@ -270,32 +669,27 @@ with tab1:
                         st.markdown("---")
 
                         if fundamento:
-                            st.markdown(f"**⚖️ Fundamento / Sustento legal:**\n\n{formatear_parrafos(fundamento)}")
+                            st.markdown(f"**⚖️ Fundamento:**\n\n{formatear_parrafos(fundamento)}")
                             st.markdown("")
 
-                        st.markdown(f"**Observación:**\n\n{formatear_parrafos(str(obs_texto))}")
+                        st.markdown(f"**Observación:**\n\n{formatear_parrafos(str(observacion))}")
 
                         if subsanacion:
                             st.markdown("")
                             st.markdown(f"**✅ Cómo se subsanó:**\n\n{formatear_parrafos(subsanacion)}")
 
-                        # Referencia citable: numero de Informe oficial + pagina,
-                        # NO el nombre de archivo (los PDFs de SENACE traen nombres
-                        # como 'signed_signed_signed_..._stamped_Informe-...pdf',
-                        # inservibles para mostrar).
                         if informe:
-                            ref_pagina = f" — página {pagina}" if pagina else ""
-                            st.caption(f"Fuente: {informe}{ref_pagina}")
-                        elif pagina:
-                            st.caption(f"Fuente: página {pagina} del informe")
-            else:
-                st.info("No se encontraron observaciones que coincidan con la búsqueda.")
-        else:
-            st.warning("Por favor ingrese un texto de consulta.")
+                            ref = f" — página {pagina}" if pagina else ""
+                            st.caption(f"Fuente: {informe}{ref}")
 
 # ---------------------------------------------------------
 # PESTAÑA 2: CONSULTA GENERAL
 # ---------------------------------------------------------
+COLUMNAS_POR_DEFECTO = [
+    "N", "Expediente", "Titulo Proyecto", "Unidad Proyecto", "Empresa",
+    "Informe", "Fecha", "Coordinador", "N Obs", "Fundamento", "Observacion",
+]
+
 with tab2:
     st.header("Explorador de la Base de Datos")
     st.write(f"Total de registros: **{len(df_all):,}**")
@@ -315,7 +709,12 @@ with tab2:
     else:
         df_mostrar = df_all
 
-    st.dataframe(df_mostrar, use_container_width=True, height=600)
+    # column_order deja encendidas por defecto solo estas columnas --
+    # el resto no desaparecen, se pueden volver a prender con el icono
+    # de "ojo" que ya trae la tabla en su barra de herramientas (arriba
+    # a la derecha).
+    orden_columnas = [c for c in COLUMNAS_POR_DEFECTO if c in df_mostrar.columns]
+    st.dataframe(df_mostrar, use_container_width=True, height=600, column_order=orden_columnas)
 
 # ---------------------------------------------------------
 # PESTAÑA 3: DASHBOARD COMPLETO & MÉTRICAS
@@ -332,7 +731,7 @@ with tab3:
 
     col_kpi1.metric("Total Observaciones", f"{total_obs:,}")
     col_kpi2.metric("Expedientes Evaluados", f"{total_expedientes:,}")
-    col_kpi3.metric("Evaluadores Activos", f"{total_evaluadores}")
+    col_kpi3.metric("Evaluadores", f"{total_evaluadores}")
     col_kpi4.metric("Empresas / Titulares", f"{total_empresas:,}")
 
     st.markdown("---")
@@ -355,6 +754,7 @@ with tab3:
                 text='Cantidad'
             )
             fig_eval.update_layout(yaxis={'categoryorder': 'total ascending'}, showlegend=False)
+            aplicar_fondo_marca(fig_eval)
             st.plotly_chart(fig_eval, use_container_width=True)
 
     with col_chart2:
@@ -371,24 +771,27 @@ with tab3:
                 hole=0.4,
                 color_discrete_sequence=px.colors.qualitative.Pastel
             )
+            aplicar_fondo_marca(fig_tema)
             st.plotly_chart(fig_tema, use_container_width=True)
 
     col_chart3, col_chart4 = st.columns(2)
 
     with col_chart3:
-        st.subheader("🏢 Top 10 Empresas con más Observaciones")
+        st.subheader("🏢 Top 20 Empresas con más Observaciones")
         if 'Empresa' in df_all.columns:
             df_emp = df_all[df_all['Empresa'] != 'Sin información']['Empresa'].value_counts().reset_index()
             df_emp.columns = ['Empresa', 'Cantidad']
 
             fig_emp = px.bar(
-                df_emp.head(10),
-                x='Empresa',
-                y='Cantidad',
+                df_emp.head(20).sort_values('Cantidad'),
+                x='Cantidad',
+                y='Empresa',
+                orientation='h',
                 color='Cantidad',
                 color_continuous_scale='Reds'
             )
-            fig_emp.update_xaxes(tickangle=45)
+            fig_emp.update_layout(showlegend=False, height=650)
+            aplicar_fondo_marca(fig_emp)
             st.plotly_chart(fig_emp, use_container_width=True)
 
     with col_chart4:
@@ -396,15 +799,69 @@ with tab3:
         if 'Expediente' in df_all.columns:
             df_exp = df_all[df_all['Expediente'] != 'Sin información']['Expediente'].value_counts().reset_index()
             df_exp.columns = ['Expediente', 'Cantidad']
+            df_exp = df_exp.head(10)
+
+            def _partir_en_2_lineas(texto, max_por_linea=22):
+                """Corta un nombre largo en 2 lineas (con <br>), partiendo
+                en el espacio mas cercano a la mitad -- para que no salga
+                una sola linea gigante al rotarla en vertical."""
+                if len(texto) <= max_por_linea:
+                    return texto
+                espacios = [i for i, c in enumerate(texto) if c == ' ']
+                if not espacios:
+                    return texto
+                corte = min(espacios, key=lambda i: abs(i - len(texto) // 2))
+                return texto[:corte] + '<br>' + texto[corte + 1:]
+
+            if 'Empresa' in df_all.columns:
+                # una empresa por expediente (la mas frecuente, por si
+                # hay alguna inconsistencia de captura entre filas)
+                mapa_empresa = (
+                    df_all[df_all['Expediente'].isin(df_exp['Expediente'])]
+                    .groupby('Expediente')['Empresa']
+                    .agg(lambda s: s.value_counts().idxmax() if len(s) else '')
+                )
+                df_exp['Empresa_label'] = df_exp['Expediente'].map(mapa_empresa).fillna('')
+                df_exp.loc[df_exp['Empresa_label'] == 'Sin información', 'Empresa_label'] = ''
+                df_exp['Empresa_label'] = df_exp['Empresa_label'].apply(
+                    lambda t: _partir_en_2_lineas(t) if t else t
+                )
+            else:
+                df_exp['Empresa_label'] = ''
 
             fig_exp = px.bar(
-                df_exp.head(10),
+                df_exp,
                 x='Expediente',
                 y='Cantidad',
                 color='Cantidad',
                 color_continuous_scale='Greens'
             )
-            fig_exp.update_xaxes(tickangle=45)
+            # Se ocultan los ticks nativos (horizontales) del eje: el
+            # numero de expediente se dibuja como parte de la misma
+            # anotacion vertical que la empresa, para que ambos queden
+            # alineados en un solo bloque de 3 lineas por barra (numero
+            # + nombre de empresa en 2 lineas), todo mas abajo para
+            # aprovechar el espacio en blanco.
+            fig_exp.update_xaxes(showticklabels=False, title=dict(text='Expediente', standoff=10))
+            fig_exp.update_layout(margin=dict(b=320), height=750)
+            for _, fila_exp in df_exp.iterrows():
+                texto = fila_exp['Expediente']
+                if fila_exp['Empresa_label']:
+                    texto += f"<br>{fila_exp['Empresa_label']}"
+                fig_exp.add_annotation(
+                    x=fila_exp['Expediente'], xref='x',
+                    y=0, yref='paper', yshift=-37,
+                    text=texto,
+                    showarrow=False, textangle=90,
+                    font=dict(size=11.5), align='left',
+                    # yanchor='top' ancla el INICIO del bloque de texto
+                    # (no el centro) al mismo punto para todas las
+                    # barras -- sin esto, un nombre de empresa mas largo
+                    # queda centrado y arranca mas abajo que uno corto,
+                    # que es justo el desalineado que se vio en pantalla.
+                    xanchor='center', yanchor='top',
+                )
+            aplicar_fondo_marca(fig_exp)
             st.plotly_chart(fig_exp, use_container_width=True)
 
     st.markdown("---")
@@ -429,27 +886,38 @@ with tab3:
                     aspect="auto"
                 )
                 fig_hm.update_layout(xaxis_title="Especialidad", yaxis_title="Evaluador")
+                aplicar_fondo_marca(fig_hm)
                 st.plotly_chart(fig_hm, use_container_width=True)
             else:
                 st.caption("No hay suficientes datos cruzados para mostrar.")
 
     with col_chart6:
-        col_item = next((c for c in ['Ítem', 'Item', 'ITEM'] if c in df_all.columns), None)
-        if col_item:
-            st.markdown("**Ítems / temas más recurrentes**")
-            df_item = df_all[df_all[col_item].notna() & (df_all[col_item].astype(str).str.strip() != '')]
-            df_item = df_item[col_item].astype(str).str.strip().value_counts().reset_index().head(15)
-            df_item.columns = ['Ítem', 'Cantidad']
+        st.markdown("**Temas más recurrentes (agrupados por significado)**")
+        temas = cargar_temas_recurrentes()
+        if temas is None:
+            st.caption(
+                "Todavía no se generó este análisis. Corre `python descubrir_temas_recurrentes.py` "
+                "(agrupa las observaciones por significado usando los vectores de Supabase) y copia "
+                "el `temas_recurrentes.json` resultante a esta misma carpeta."
+            )
+        else:
+            df_tema_rec = pd.DataFrame(temas).head(15)
             fig_item = px.bar(
-                df_item.sort_values('Cantidad'),
-                x='Cantidad',
-                y='Ítem',
+                df_tema_rec.sort_values('cantidad'),
+                x='cantidad',
+                y='tema',
                 orientation='h',
-                color='Cantidad',
+                color='cantidad',
                 color_continuous_scale='Purples'
             )
-            fig_item.update_layout(showlegend=False)
+            fig_item.update_layout(showlegend=False, yaxis_title='Tema', xaxis_title='Cantidad')
+            aplicar_fondo_marca(fig_item)
             st.plotly_chart(fig_item, use_container_width=True)
+            st.caption(
+                "Cada tema agrupa observaciones parecidas EN SIGNIFICADO (no por texto exacto), "
+                "usando los vectores de IA ya generados. Las palabras de cada tema son las más "
+                "distintivas de ese grupo, no un título elegido a mano."
+            )
 
     col_chart7, col_chart8 = st.columns(2)
 
@@ -468,6 +936,7 @@ with tab3:
                 hole=0.4,
                 color_discrete_sequence=px.colors.qualitative.Set2
             )
+            aplicar_fondo_marca(fig_img)
             st.plotly_chart(fig_img, use_container_width=True)
 
     with col_chart8:
@@ -481,6 +950,7 @@ with tab3:
                 df_mensual = df_fecha.set_index(col_fecha).resample('ME').size().reset_index()
                 df_mensual.columns = ['Mes', 'Cantidad']
                 fig_tiempo = px.line(df_mensual, x='Mes', y='Cantidad', markers=True)
+                aplicar_fondo_marca(fig_tiempo)
                 st.plotly_chart(fig_tiempo, use_container_width=True)
             else:
                 st.caption("No se pudieron interpretar las fechas de esta columna.")
@@ -495,9 +965,6 @@ with tab3:
             df_its[col_fecha] = df_its[col_fecha].apply(parsear_fecha_es)
             df_its = df_its.dropna(subset=[col_fecha])
             if not df_its.empty:
-                # Se cuenta por EXPEDIENTE UNICO, no por fila de observacion
-                # -- un solo ITS tiene decenas de observaciones, contar filas
-                # inflaria el numero de estudios evaluados.
                 df_its['Año'] = df_its[col_fecha].dt.year
                 its_por_anio = df_its.groupby('Año')['Expediente'].nunique().reset_index()
                 its_por_anio.columns = ['Año', 'Cantidad de ITS']
@@ -510,6 +977,7 @@ with tab3:
                     text='Cantidad de ITS'
                 )
                 fig_its_anio.update_layout(showlegend=False, xaxis=dict(type='category'))
+                aplicar_fondo_marca(fig_its_anio)
                 st.plotly_chart(fig_its_anio, use_container_width=True)
 
                 sin_fecha = df_all['Expediente'].nunique() - df_its['Expediente'].nunique()
