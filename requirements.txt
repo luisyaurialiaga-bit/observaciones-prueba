@@ -1,5 +1,8 @@
-streamlit
-pandas
-openpyxl
-plotly
-pyarrow
+[client]
+# Oculta el boton de "Download as CSV" (y desactiva copiar al
+# portapapeles) en TODAS las tablas de la app -- st.dataframe,
+# st.data_editor y las tablas de los graficos. Es la opcion oficial
+# de Streamlit para esto (agregada 21-jul-2026); el truco anterior con
+# CSS (button[title="Download as CSV"]) nunca funciono de verdad
+# porque ese texto no es un atributo "title" real del boton.
+disableDataExport = true
