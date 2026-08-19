@@ -588,7 +588,7 @@ if datos is None:
 
 df_all, col_obs = datos
 
-tab1, tab2, tab3 = st.tabs(["🔍 Búsqueda de Observaciones", "📋 Consulta General", "📊 Dashboard Completo & Métricas"])
+tab1, tab2, tab3, tab4 = st.tabs(["🔍 Búsqueda de Observaciones", "📋 Consulta General", "📊 Dashboard Completo & Métricas", "🧠 Evaluador IA"])
 
 # ---------------------------------------------------------
 # PESTAÑA 1: BÚSQUEDA HÍBRIDA (Supabase + IA)
@@ -1100,3 +1100,75 @@ with tab3:
                     st.caption(f"({sin_fecha} expediente(s) sin fecha identificable, no incluido(s) en el gráfico)")
             else:
                 st.caption("No se pudieron interpretar las fechas de esta columna.")
+
+with tab4:
+    st.header("🧠 Evaluador IA de Documentos ITS")
+    st.caption(
+        "Próximamente: sube tu documento y SIGO lo revisará con el mismo criterio "
+        "que aprendió de miles de observaciones reales de SENACE."
+    )
+
+    st.markdown("---")
+    st.subheader("¿Cómo llegamos hasta acá?")
+
+    pasos = [
+        ("1", "Descarga histórica",
+         "Se recopilaron los expedientes ITS evaluados por SENACE a lo largo de los años, "
+         "con miles de observaciones reales emitidas por especialistas."),
+        ("2", "Discriminación y depuración",
+         "Cada observación se clasificó por especialidad (Físico, Biológico, Social, Legal, "
+         "Descripción de Proyectos, entre otras), descartando registros incompletos o duplicados."),
+        ("3", "Extracción y estructuración",
+         "La información se extrajo a una base tabular (Excel → base de datos), conservando "
+         "expediente, empresa, especialidad, fundamento y observación de cada hallazgo."),
+        ("4", "Normalización",
+         "El texto se normalizó y se generaron vectores de significado (IA) para cada "
+         "observación, habilitando búsquedas por texto exacto y por significado."),
+        ("5", "Base de datos limpia y clasificada",
+         "Resultado: 20 515 observaciones históricas, consultables en segundos desde la "
+         "pestaña de Búsqueda."),
+        ("6", "Análisis de tendencias",
+         "Sobre el 100% de la base se identificó qué TIPO de hallazgo es más frecuente en la "
+         "historia de SENACE: falta de sustento técnico, aclaración, corrección, contradicción "
+         "interna, omisión de análisis, entre otros."),
+        ("7", "Análisis de severidad",
+         "Cada observación histórica se clasificó como DE FONDO (crítica: impactos, cuerpos de "
+         "agua, especies protegidas, viabilidad del ITS) o DE FORMA (leyenda, escala, "
+         "denominación), cruzado por especialidad."),
+    ]
+
+    for numero, titulo, texto in pasos:
+        st.markdown(f"""
+        <div style="display:flex; gap:16px; margin-bottom:18px; align-items:flex-start;">
+            <div style="background-color:#3F1840; color:#E5DBEB; min-width:36px; height:36px;
+                        border-radius:50%; display:flex; align-items:center; justify-content:center;
+                        font-weight:bold; font-size:16px; flex-shrink:0;">{numero}</div>
+            <div>
+                <div style="font-weight:bold; color:#3F1840; font-size:16px;">{titulo}</div>
+                <div style="color:#333; font-size:14px;">{texto}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    st.markdown("""
+    <div style="background-color:#E5DBEB; border-left:5px solid #A02671; padding:18px 22px;
+                border-radius:6px; margin-bottom:20px;">
+        <div style="font-weight:bold; color:#3F1840; font-size:17px; margin-bottom:6px;">
+            Con esos dos ejes — tendencia y severidad — como base
+        </div>
+        <div style="color:#333; font-size:14.5px;">
+            El documento que se suba aquí será observado por un modelo de IA avanzado, comparando
+            su contenido contra los patrones reales que SENACE ha emitido históricamente — no contra
+            suposiciones genéricas. El mismo documento podrá además pasar por más de un modelo de IA
+            (por ejemplo Claude y ChatGPT) para contrastar resultados y aumentar la confiabilidad del
+            análisis.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.info(
+        "🚧 La carga de documentos y el análisis automático todavía no están activos en esta "
+        "pestaña. Esta vista explica el proceso completo que los sustentará."
+    )
