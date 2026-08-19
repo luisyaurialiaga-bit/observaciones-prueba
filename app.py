@@ -596,6 +596,23 @@ tab1, tab2, tab3 = st.tabs(["🔍 Búsqueda de Observaciones", "📋 Consulta Ge
 with tab1:
     st.header("Búsqueda Avanzada de Observaciones (palabra clave + IA)")
 
+    # Opciones de los desplegables de especialidad/evaluador, sacadas
+    # directamente de df_all (ya cargado desde Supabase mas arriba) --
+    # asi la lista siempre refleja los valores reales de la base, sin
+    # mantenerla a mano. "Sin Asignar" se excluye del de evaluador
+    # porque no es un evaluador real (mismo criterio que el resto del
+    # Dashboard, ver mask_asignado en limpiar_dataframe()).
+    OPCION_TODAS_ESP = "(Todas)"
+    OPCION_TODOS_EVAL = "(Todos)"
+    opciones_especialidad = [OPCION_TODAS_ESP] + (
+        sorted(df_all['Especialidad Final'].dropna().unique().tolist())
+        if 'Especialidad Final' in df_all.columns else []
+    )
+    opciones_evaluador = [OPCION_TODOS_EVAL] + (
+        sorted(df_all.loc[df_all['Coordinador'] != 'Sin Asignar', 'Coordinador'].dropna().unique().tolist())
+        if 'Coordinador' in df_all.columns else []
+    )
+
     # Envolver los campos en un st.form hace que presionar Enter en
     # cualquiera de ellos dispare la busqueda -- Streamlit lo hace
     # automaticamente para formularios, sin tener que programar nada
@@ -610,17 +627,20 @@ with tab1:
         with col1:
             top_k = st.slider("Cantidad de resultados:", min_value=5, max_value=50, value=10)
         with col2:
-            especialidad_filtro = st.text_input(
-                "Filtrar por especialidad (opcional, dejar vacío = todas):",
-                placeholder="Ej: Fisico, Social, Biologico..."
+            especialidad_filtro = st.selectbox(
+                "Filtrar por especialidad (opcional):",
+                options=opciones_especialidad,
             )
         with col3:
-            evaluador_filtro = st.text_input(
-                "Filtrar por evaluador (opcional, dejar vacío = todos):",
-                placeholder="Ej: Carlos Eduardo Moya Sulca..."
+            evaluador_filtro = st.selectbox(
+                "Filtrar por evaluador (opcional):",
+                options=opciones_evaluador,
             )
 
         buscar = st.form_submit_button("Buscar Observaciones", type="primary")
+
+    especialidad_valor = None if especialidad_filtro == OPCION_TODAS_ESP else especialidad_filtro
+    evaluador_valor = None if evaluador_filtro == OPCION_TODOS_EVAL else evaluador_filtro
 
     if buscar:
         if not query.strip():
@@ -634,9 +654,9 @@ with tab1:
                 resultado = supabase.rpc("buscar_hibrido", {
                     "consulta_texto": query,
                     "consulta_vector": vector_a_texto_postgres(vector_consulta),
-                    "filtro_especialidad": especialidad_filtro.strip() or None,
+                    "filtro_especialidad": especialidad_valor,
                     "cantidad": top_k,
-                    "filtro_evaluador": evaluador_filtro.strip() or None,
+                    "filtro_evaluador": evaluador_valor,
                 }).execute()
 
             filas = resultado.data or []
@@ -654,8 +674,8 @@ with tab1:
                 try:
                     conteo = supabase.rpc("contar_busqueda", {
                         "consulta_texto": query,
-                        "filtro_especialidad": especialidad_filtro.strip() or None,
-                        "filtro_evaluador": evaluador_filtro.strip() or None,
+                        "filtro_especialidad": especialidad_valor,
+                        "filtro_evaluador": evaluador_valor,
                     }).execute()
                     desglose_especialidad = conteo.data or []
                     total_encontrados = sum(f["cantidad"] for f in desglose_especialidad)
