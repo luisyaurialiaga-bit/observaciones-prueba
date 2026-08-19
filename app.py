@@ -209,6 +209,38 @@ st.markdown(
         [data-baseweb="tab-highlight"] {
             background-color: #A02671 !important;
         }
+
+        /* Pantalla de carga a pantalla completa (19-ago-2026), solo para
+        la carga inicial de datos desde Supabase. Reemplaza el mensaje
+        de texto de Streamlit por un fondo lila uniforme con 3 puntos
+        de marca rebotando en el centro -- ver .sigo-loading-overlay
+        mas abajo en el codigo Python, donde se muestra/oculta con
+        st.empty() alrededor de cargar_datos_supabase(). */
+        .sigo-loading-overlay {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #E5DBEB; /* Lila Sugle, igual al fondo de la app */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            z-index: 999999;
+        }
+        .sigo-loading-overlay .sigo-dot {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            animation: sigo-rebote 0.9s ease-in-out infinite;
+        }
+        .sigo-loading-overlay .sigo-dot-1 { background-color: #A02671; animation-delay: 0s; }
+        .sigo-loading-overlay .sigo-dot-2 { background-color: #673366; animation-delay: 0.15s; }
+        .sigo-loading-overlay .sigo-dot-3 { background-color: #3F1840; animation-delay: 0.3s; }
+        @keyframes sigo-rebote {
+            0%, 80%, 100% { transform: translateY(0); opacity: 0.6; }
+            40% { transform: translateY(-18px); opacity: 1; }
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -371,13 +403,16 @@ RENOMBRAR_SUPABASE = {
 COLUMNAS_SUPABASE = ",".join(RENOMBRAR_SUPABASE.keys())
 
 
-@st.cache_data(show_spinner="Cargando base de datos desde Supabase (Consulta General / Dashboard)...", ttl=600)
+@st.cache_data(show_spinner=False, ttl=600)
 def cargar_datos_supabase(_supabase):
     """Trae TODAS las filas de la tabla observaciones, paginando de a
     1000 (limite por pedido de la API de Supabase/PostgREST). El
     guion bajo en '_supabase' es a proposito: le dice a st.cache_data
     que no intente usar ese argumento para decidir si el cache sigue
-    valido (un cliente de Supabase no se puede "hashear")."""
+    valido (un cliente de Supabase no se puede "hashear"). El spinner
+    default de Streamlit esta apagado (show_spinner=False) porque el
+    llamado a esta funcion, mas abajo, ya muestra su propia pantalla
+    de carga a pantalla completa (.sigo-loading-overlay)."""
     filas = []
     inicio = 0
     LOTE = 1000
@@ -515,7 +550,20 @@ st.caption("Matriz de observaciones clasificadas · Base histórica normalizada 
 st.markdown('<div class="sigo-firma">jlya</div>', unsafe_allow_html=True)
 
 supabase = conectar_supabase()
+
+_placeholder_carga = st.empty()
+_placeholder_carga.markdown(
+    """
+    <div class="sigo-loading-overlay">
+        <div class="sigo-dot sigo-dot-1"></div>
+        <div class="sigo-dot sigo-dot-2"></div>
+        <div class="sigo-dot sigo-dot-3"></div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 datos = cargar_datos_supabase(supabase)
+_placeholder_carga.empty()
 
 if datos is None:
     st.error("⚠️ No se pudo cargar información desde Supabase (la tabla respondió vacía). "
