@@ -44,6 +44,7 @@ import os
 import re
 import unicodedata
 from supabase import create_client
+from postgrest.exceptions import APIError
 
 # ---------------------------------------------------------
 # Configuracion general
@@ -686,17 +687,38 @@ with tab1:
                 vector_consulta = list(modelo.embed([query]))[0].tolist()
 
             with st.spinner("Consultando la base (texto + IA)..."):
-                resultado = supabase.rpc("buscar_hibrido", {
-                    "consulta_texto": query,
-                    "consulta_vector": vector_a_texto_postgres(vector_consulta),
-                    "filtro_especialidad": especialidad_valor,
-                    "cantidad": top_k,
-                    "filtro_evaluador": evaluador_valor,
-                }).execute()
+                # buscar_hibrido puede tardar demasiado con consultas de
+                # una sola palabra muy generica (ej. "aire", "agua") --
+                # el texto de esa palabra hace match con casi todas las
+                # 20 mil filas, lo que dispara el statement_timeout de
+                # Postgres (codigo 57014). Se atrapa aca para mostrar un
+                # aviso util en vez de reventar la app con un traceback.
+                filas = None
+                try:
+                    resultado = supabase.rpc("buscar_hibrido", {
+                        "consulta_texto": query,
+                        "consulta_vector": vector_a_texto_postgres(vector_consulta),
+                        "filtro_especialidad": especialidad_valor,
+                        "cantidad": top_k,
+                        "filtro_evaluador": evaluador_valor,
+                    }).execute()
+                    filas = resultado.data or []
+                except APIError as e:
+                    if getattr(e, "code", None) == "57014":
+                        st.error(
+                            "⏱️ La búsqueda tardó demasiado en la base de datos. Esto suele pasar "
+                            "con palabras sueltas muy genéricas (ej. \"aire\", \"agua\"). Prueba con "
+                            "una frase más específica, de 2 o más palabras "
+                            "(ej. \"calidad de aire\" en vez de \"aire\")."
+                        )
+                    else:
+                        st.error(f"⚠️ Ocurrió un problema al consultar la base de datos: {e}")
+                except Exception as e:
+                    st.error(f"⚠️ Ocurrió un problema inesperado al consultar la base de datos: {e}")
 
-            filas = resultado.data or []
-
-            if not filas:
+            if filas is None:
+                pass  # ya se mostro el aviso de error arriba
+            elif not filas:
                 st.info("No se encontraron observaciones que coincidan con la búsqueda.")
             else:
                 # Cuenta el total real de coincidencias por texto (sin el
