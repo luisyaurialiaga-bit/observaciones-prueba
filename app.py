@@ -210,6 +210,27 @@ st.markdown(
             background-color: #A02671 !important;
         }
 
+        /* Titulo de presentacion debajo de la barra SIGO (20-ago-2026):
+        reemplaza el st.caption chico que decia solo "Matriz de
+        observaciones clasificadas..." por una intro mas protagonista
+        que explica que se puede hacer en la app. */
+        .sigo-intro {
+            margin-bottom: 1.6rem;
+        }
+        .sigo-intro-titulo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #3F1840; /* Morado Vino */
+            line-height: 1.3;
+            margin-bottom: 4px;
+        }
+        .sigo-intro-subtitulo {
+            font-size: 0.98rem;
+            color: #673366; /* Morado Uva */
+            line-height: 1.5;
+            max-width: 900px;
+        }
+
         /* Pantalla de carga a pantalla completa (19-ago-2026), solo para
         la carga inicial de datos desde Supabase. Reemplaza el mensaje
         de texto de Streamlit por un fondo lila uniforme con 3 puntos
@@ -561,7 +582,21 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.caption("Matriz de observaciones clasificadas · Base histórica normalizada de expedientes ITS")
+st.markdown(
+    """
+    <div class="sigo-intro">
+        <div class="sigo-intro-titulo">
+            Toda la memoria técnica de SENACE, lista para consultar
+        </div>
+        <div class="sigo-intro-subtitulo">
+            Busca por palabra clave o por significado (IA), consulta la matriz completa de
+            observaciones, y descubre tendencias y patrones de exigencia técnica — sobre más de
+            20 500 observaciones históricas de expedientes ITS, normalizadas y clasificadas.
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 st.markdown('<div class="sigo-firma">jlya</div>', unsafe_allow_html=True)
 
