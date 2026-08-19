@@ -452,6 +452,22 @@ def cargar_temas_recurrentes():
         return _json.load(f)
 
 
+TENDENCIAS_JSON_PATH = "ranking_tipos_hallazgo.json"
+
+
+@st.cache_data(show_spinner=False)
+def cargar_ranking_tendencias():
+    """Lee ranking_tipos_hallazgo.json (generado aparte por
+    clasificar_tipo_hallazgo.py) si existe. Devuelve None si todavia
+    no se genero -- el Dashboard muestra un aviso en ese caso en vez
+    de fallar."""
+    import json as _json
+    if not os.path.exists(TENDENCIAS_JSON_PATH):
+        return None
+    with open(TENDENCIAS_JSON_PATH, encoding="utf-8") as f:
+        return _json.load(f)
+
+
 def limpiar_dataframe(df):
     col_obs = "Observacion"
     for col in ["Observación", "OBSERVACION", "Observacion", "observacion"]:
@@ -966,6 +982,37 @@ with tab3:
                 "usando los vectores de IA ya generados. Las palabras de cada tema son las más "
                 "distintivas de ese grupo, no un título elegido a mano."
             )
+
+    st.markdown("---")
+    st.markdown("**Ranking de tendencias por tipo de hallazgo**")
+    ranking_tend = cargar_ranking_tendencias()
+    if ranking_tend is None:
+        st.caption(
+            "Todavía no se generó este análisis. Corre `python clasificar_tipo_hallazgo.py` "
+            "(clasifica las observaciones históricas por tipo de pedido: sustento, aclaración, "
+            "corrección, contradicción, etc.) y copia el `ranking_tipos_hallazgo.json` resultante "
+            "a esta misma carpeta."
+        )
+    else:
+        df_tend = pd.DataFrame(ranking_tend["ranking_tendencias"])
+        fig_tend = px.bar(
+            df_tend.sort_values('cantidad'),
+            x='cantidad',
+            y='categoria',
+            orientation='h',
+            color='cantidad',
+            color_continuous_scale='RdPu',
+            text='porcentaje'
+        )
+        fig_tend.update_traces(texttemplate='%{text}%', textposition='outside')
+        fig_tend.update_layout(showlegend=False, yaxis_title='Tipo de hallazgo', xaxis_title='Cantidad de observaciones', height=450)
+        aplicar_fondo_marca(fig_tend)
+        st.plotly_chart(fig_tend, use_container_width=True)
+        st.caption(
+            "Cada observación puede pedir varias cosas a la vez (sustento, corrección, aclaración...), "
+            "por eso una misma observación puede contar en más de una categoría y los porcentajes "
+            "suman más de 100%. No es un error."
+        )
 
     col_chart7, col_chart8 = st.columns(2)
 

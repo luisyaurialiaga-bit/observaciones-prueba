@@ -1,0 +1,371 @@
+{
+  "total_observaciones": 20515,
+  "sin_categoria_detectada": 950,
+  "ejemplos_sin_categoria": [
+    {
+      "expediente": "M-ITS-00008-2019",
+      "especialidad_final": "Social",
+      "observacion": "Se requiere que el Titular en el ítem 11.1 Medidas de manejo ambiental y social, presente de manera diferenciada las medidas de manejo establecidas en sus IGA aprobados de los propuestos para el presente ITS."
+    },
+    {
+      "expediente": "M-ITS-00001-2021",
+      "especialidad_final": "Sig",
+      "observacion": "Se requiere que el Titular registre en la Plataforma Informática de la Ventanilla Única de Certificación Ambiental – EVA, de manera diferenciada la información correspondiente a los componentes a modificar en el Segundo ITS Yauricocha, en formato shapefile y KMZ."
+    },
+    {
+      "expediente": "M-ITS-00001-2022",
+      "especialidad_final": "Fisico",
+      "observacion": "Se solicita al Titular presentar el análisis de las características sísmicas del área del proyecto. sísmicas del área del proyecto en el ítem 8.1.2.4 Sismicidad."
+    },
+    {
+      "expediente": "M-ITS-00001-2022",
+      "especialidad_final": "Descripcion de Proyectos",
+      "observacion": "Se solicita al Titular presentar los planos de los componentes del proyecto presentados en el Anexo 9 del Quinto ITS La Arena con las firmas de los profesionales especialistas responsables."
+    },
+    {
+      "expediente": "M-ITS-00001-2022",
+      "especialidad_final": "Descripcion de Proyectos",
+      "observacion": "Se solicita al Titular presentar los planos de los componentes del proyecto presentados en el Anexo 9 del Quinto ITS La Arena con las firmas de los profesionales especialistas responsables."
+    },
+    {
+      "expediente": "M-ITS-00003-2026",
+      "especialidad_final": "Descripcion de Proyectos",
+      "observacion": "Se requiere al Titular incluir en el Capítulo 1 “Unidad Minera” información sobre la propiedad superficial de las áreas donde se emplazarán los componentes propuestos del Segundo ITS Tantahuatay; asimismo, incluir un mapa, con su respectivo archivo shapefile y KMZ, que contenga la información antes indicada."
+    },
+    {
+      "expediente": "M-ITS-00003-2026",
+      "especialidad_final": "Administrativo",
+      "observacion": "Se requiere al Titular presentar el Certificado de Habilitación de los especialistas encargados de elaborar el Segundo ITS Tantahuatay, los mismos que tendrán que estar habilitados durante todo el proceso de evaluación del Segundo ITS Tantahuatay."
+    },
+    {
+      "expediente": "M-ITS-00003-2026",
+      "especialidad_final": "Social",
+      "observacion": "Se requiere al Titular presentar en el Mapa N° 8.29 “Áreas CIRA” la ubicación de los CIRAS listados en el ítem 8.5 “Presencia de Restos Arqueológicos, Históricos y Culturales”."
+    },
+    {
+      "expediente": "M-ITS-00003-2026",
+      "especialidad_final": "Administrativo",
+      "observacion": "Se requiere al Titular presentar el Certificado de Habilitación de los especialistas encargados de elaborar el Segundo ITS Tantahuatay, los mismos que tendrán que estar habilitados durante todo el proceso de evaluación del Segundo ITS Tantahuatay."
+    },
+    {
+      "expediente": "M-ITS-00004-2021",
+      "especialidad_final": null,
+      "observacion": "Se requiere que el Titular actualice la versión final del estudio tomando en consideración las observaciones formuladas al Tercer ITS Pucamarca."
+    },
+    {
+      "expediente": "M-ITS-00006-2022",
+      "especialidad_final": "Sig",
+      "observacion": "Se requiere al Titular presentar de manera completa, y asegurando la consistencia, la información cartográfica editable en formato shapefile y kmz, de manera que la extensión, temática y elementos de dicha información sea congruente con el contenido de cada mapa y plano presentado en los diversos capítulos del Décimo Primer ITS San Rafael."
+    },
+    {
+      "expediente": "M-ITS-00006-2022",
+      "especialidad_final": "Administrativo",
+      "observacion": "Se requiere que el Titular presente el certificado de habilidad del biólogo Pablo Juan Franco León."
+    },
+    {
+      "expediente": "M-ITS-00007-2021",
+      "especialidad_final": "Sig",
+      "observacion": "Se requiere que el Titular, registre en EVA la información digital editable de los mapas y planos, en formato SHP, KMZ, y/o DWG, presentados en el Tercer ITS Veta Dorada."
+    },
+    {
+      "expediente": "M-ITS-00006-2022",
+      "especialidad_final": "Biologico",
+      "observacion": "Se requiere que el Titular correlacione las estaciones de monitoreo biológico con los componentes mineros propuestos en el Décimo Primer ITS San Rafael; en su defecto, proponer técnicamente las respectivas estaciones de monitoreo biológico."
+    },
+    {
+      "expediente": "M-ITS-00007-2021",
+      "especialidad_final": "Fisico",
+      "observacion": "Se requiere que el Titular, en el ítem 8.2.5 Calidad del aire, suelo, agua y ruido ambiental, presente el análisis de la calidad del suelo en el área de influencia de la UM Veta Dorada, representativos a los componentes propuestos."
+    }
+  ],
+  "ranking_tendencias": [
+    {
+      "categoria": "Informacion o dato incompleto / complementar",
+      "cantidad": 17614,
+      "porcentaje": 85.9,
+      "ejemplos": [
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": null,
+          "observacion": "Se requiere que el Titular incorpore sus respuestas en una versión actualizada del Primer ITS Ticlio y adjunte una tabla donde consigne los folios que han sido modificados, a razón de sus respuestas."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": null,
+          "observacion": "Se solicita al titular: a) Corregir la figura 1.1.1. Ubicación del proyecto; en la cual se pueda apreciar el detalle de los límites distritales y provinciales, como se indica en el sustento. b) Corregir la figura 1.1.2. Concesiones Mineras; en la cual se pueda apreciar el detalle de los polígonos correspondientes a las concesiones: Acumulación Ticlio, Acumulación Ticlio A, Acumulación Ticlio B, y Acumulación Ticlio C, demostrando claramente los detalles temáticos de la ubicación y los límites de las concesiones del proyecto para su correcta lectura y comprensión; tal como se solicita en el artículo 45, del capítulo 2 del D.S.040-2014-EM. c) Se requiere que el Titular consigne las concesiones mineras que involucran la UM Ticlio, de acuerdo al EIA 2008."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": null,
+          "observacion": "Se requiere que el Titular complemente la Figura 1.1.1, incluyendo los límites políticos y alguna referencia de la UM Ticlio que permita confirmar la descripción indicada en el 1.1.3."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Social",
+          "observacion": "Se solicita al titular: a) Sustentar y/o corregir la descripción correspondiente a los componentes 3. Incorporación de nuevos campamentos, 4. Plataformas de exploración confirmatorias y 5. Incorporación de nuevos accesos; en la intersección en la columna “Resolución Directoral que aprueba el componente existente”, precisando si los componentes corresponden a modificaciones aprobadas en la R.D. N° 003-2008-MEM/AAM o son componentes por implementar. b) Corregir y/o sustentar el Cuadro 4.2.1 Criterios técnicos para modificaciones de componentes mineros de la U.M. Ticlio; citando el criterio respectivo basado en la norma aprobada mediante la R.M. N° 120-2014- MEM/DM (C.1.11 Exploraciones). Asimismo, deberá corregir el pie de cuadro citado, incorporándolo en la columna respectiva. Las correcciones solicitadas deberán efectuarse en los subsiguientes cuadros de los respectivos capítulos del presente IGA."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Descripcion de Proyectos",
+          "observacion": "Se requiere que el Titular no incluya en la descripción del ítem 7.1.1 el área efectiva presentado dentro de la Actualización del Plan de Cierre de Minas, omitiendo de presentar además los cuadros de coordenadas y las delimitaciones de estas áreas de la Figura 7.1.1, así como de cualquier otro mapa o figura que presente estas áreas. En su lugar, el ítem 7.1.1 debería indicar que existe un área de proyecto incluida en el EIA 2008 (verificar mapa de concesiones mineras del EIA en mención), lo cual debería reflejarse en la Figura 7.1.1."
+        }
+      ]
+    },
+    {
+      "categoria": "Aclaracion o precision requerida",
+      "cantidad": 10139,
+      "porcentaje": 49.4,
+      "ejemplos": [
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Social",
+          "observacion": "Se solicita al titular: a) Sustentar y/o corregir la descripción correspondiente a los componentes 3. Incorporación de nuevos campamentos, 4. Plataformas de exploración confirmatorias y 5. Incorporación de nuevos accesos; en la intersección en la columna “Resolución Directoral que aprueba el componente existente”, precisando si los componentes corresponden a modificaciones aprobadas en la R.D. N° 003-2008-MEM/AAM o son componentes por implementar. b) Corregir y/o sustentar el Cuadro 4.2.1 Criterios técnicos para modificaciones de componentes mineros de la U.M. Ticlio; citando el criterio respectivo basado en la norma aprobada mediante la R.M. N° 120-2014- MEM/DM (C.1.11 Exploraciones). Asimismo, deberá corregir el pie de cuadro citado, incorporándolo en la columna respectiva. Las correcciones solicitadas deberán efectuarse en los subsiguientes cuadros de los respectivos capítulos del presente IGA."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Social",
+          "observacion": "Se requiere que el Titular precise si la Comunidad Campesina de San Francisco de Asís forma parte del área de influencia conforme al IGA aprobado, así como la totalidad de la Comunidad Campesina de San Mateo de Huanchor, toda vez que mediante el ITS no se aprueban nuevas áreas de influencia social. Además, deberá aclarar la inconsistencia del mapa de área de influencia social directa conforme al IGA vigente aprobada, debiendo superponerse las localidades del AISD, AISI y los componentes del proyecto del presente ITS."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Fisico",
+          "observacion": "Se requiere que el Titular precise en la leyenda de la “Figura 8.2.4 Geomorfología y Geodinámica Externa” los distintos procesos de geodinámica externa presentes en el área de estudio, las cuales se encuentran graficados en el correspondiente mapa temático."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Fisico",
+          "observacion": "Se requiere al Titular: a) Identificar que estaciones precisadas en el Cuadro 8.2.8 presentan resultados de la línea base del EIA. b) Incluir en su análisis y gráficos el ECA o norma con la cual se aprobó el programa de monitoreo y en forma referencial el ECA 2017. c) Explicar las excedencias identificadas, así sean puntuales (PM10). d) Complementar la información de calidad de aire con data del 2018."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Fisico",
+          "observacion": "Se requiere al Titular: a) Complementar la información presentada con data del 2018. b) Adicionalmente a la comparación referencial de resultados con el ECA 2017, es necesario comprar con la norma aprobada o caso contrario indicar que ello no se señaló en el EIA. c) Explicar el porqué de los valores atípicos registrados para algunos parámetros. d) Incluir los resultados del monitoreo de efluentes que se señala al inicio del ítem, seleccionando aquellas estaciones más representativas para los componentes propuestos. De no corresponder sustentar. e) Presentar en un plano todas las estaciones aprobadas para la unidad en el EIA y sustentar la selección de las estaciones presentadas (08), sustentando la no inclusión de las estaciones restantes (04)."
+        }
+      ]
+    },
+    {
+      "categoria": "Falta de sustento o justificacion tecnica",
+      "cantidad": 8110,
+      "porcentaje": 39.5,
+      "ejemplos": [
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": null,
+          "observacion": "Se solicita al titular: a) Corregir la figura 1.1.1. Ubicación del proyecto; en la cual se pueda apreciar el detalle de los límites distritales y provinciales, como se indica en el sustento. b) Corregir la figura 1.1.2. Concesiones Mineras; en la cual se pueda apreciar el detalle de los polígonos correspondientes a las concesiones: Acumulación Ticlio, Acumulación Ticlio A, Acumulación Ticlio B, y Acumulación Ticlio C, demostrando claramente los detalles temáticos de la ubicación y los límites de las concesiones del proyecto para su correcta lectura y comprensión; tal como se solicita en el artículo 45, del capítulo 2 del D.S.040-2014-EM. c) Se requiere que el Titular consigne las concesiones mineras que involucran la UM Ticlio, de acuerdo al EIA 2008."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Social",
+          "observacion": "Se solicita al titular: a) Sustentar y/o corregir la descripción correspondiente a los componentes 3. Incorporación de nuevos campamentos, 4. Plataformas de exploración confirmatorias y 5. Incorporación de nuevos accesos; en la intersección en la columna “Resolución Directoral que aprueba el componente existente”, precisando si los componentes corresponden a modificaciones aprobadas en la R.D. N° 003-2008-MEM/AAM o son componentes por implementar. b) Corregir y/o sustentar el Cuadro 4.2.1 Criterios técnicos para modificaciones de componentes mineros de la U.M. Ticlio; citando el criterio respectivo basado en la norma aprobada mediante la R.M. N° 120-2014- MEM/DM (C.1.11 Exploraciones). Asimismo, deberá corregir el pie de cuadro citado, incorporándolo en la columna respectiva. Las correcciones solicitadas deberán efectuarse en los subsiguientes cuadros de los respectivos capítulos del presente IGA."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": null,
+          "observacion": "Se requiere que el Titular retire del ítem 7.1.2, la información del área efectiva presentada en el PCM (considerar de antecedente la observación previa respecto al plan de cierre de minas). Para el caso de las áreas ingresadas en la plataforma EVA de SENACE, considerar las coordenadas de los vértices del área de proyecto del EIA 2008 (, la cual de todas maneras deberá ser considerada como referencial, toda vez que no existen coordenadas establecidas."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Fisico",
+          "observacion": "Se requiere al Titular: a) Complementar la información presentada con data del 2018. b) Adicionalmente a la comparación referencial de resultados con el ECA 2017, es necesario comprar con la norma aprobada o caso contrario indicar que ello no se señaló en el EIA. c) Explicar el porqué de los valores atípicos registrados para algunos parámetros. d) Incluir los resultados del monitoreo de efluentes que se señala al inicio del ítem, seleccionando aquellas estaciones más representativas para los componentes propuestos. De no corresponder sustentar. e) Presentar en un plano todas las estaciones aprobadas para la unidad en el EIA y sustentar la selección de las estaciones presentadas (08), sustentando la no inclusión de las estaciones restantes (04)."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Descripcion de Proyectos",
+          "observacion": "Se requiere que el titular: a) Describa el estado actual de los componentes existentes en la Unidad Minera, identificando el IGA de aprobación y las principales características de diseño (capacidad instalada, volúmenes de tratamiento, volúmenes de almacenamiento, volumen de producción, etc.) y operación (distribución de alojamiento, labores subterráneas, extensión de red vial, efluentes generados y tratamiento, balance de agua, etc.); asimismo resumir en una tabla los componentes actuales de la U.M con información referente a la ubicación, área, estado e IGA de aprobación. b) Incorporar el detalle de los componentes aprobados en los mapas y figuras correspondientes; asimismo, añadir la tabla solicitada en el acápite a) de la presente observación como parte de la descripción del plano o figura a presentar. En base al acápite D. Contenido Mínimo del Informe Técnico Sustentatorio (ITS) de la R.M. 120-2014-MEM/DM, la modificación o ampliación del proyecto o mejora tecnológica deberá presentarse a nivel de factibilidad."
+        }
+      ]
+    },
+    {
+      "categoria": "Correccion de error material, plano o figura",
+      "cantidad": 4256,
+      "porcentaje": 20.7,
+      "ejemplos": [
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": null,
+          "observacion": "Se solicita al titular: a) Corregir la figura 1.1.1. Ubicación del proyecto; en la cual se pueda apreciar el detalle de los límites distritales y provinciales, como se indica en el sustento. b) Corregir la figura 1.1.2. Concesiones Mineras; en la cual se pueda apreciar el detalle de los polígonos correspondientes a las concesiones: Acumulación Ticlio, Acumulación Ticlio A, Acumulación Ticlio B, y Acumulación Ticlio C, demostrando claramente los detalles temáticos de la ubicación y los límites de las concesiones del proyecto para su correcta lectura y comprensión; tal como se solicita en el artículo 45, del capítulo 2 del D.S.040-2014-EM. c) Se requiere que el Titular consigne las concesiones mineras que involucran la UM Ticlio, de acuerdo al EIA 2008."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Social",
+          "observacion": "Se solicita al titular: a) Sustentar y/o corregir la descripción correspondiente a los componentes 3. Incorporación de nuevos campamentos, 4. Plataformas de exploración confirmatorias y 5. Incorporación de nuevos accesos; en la intersección en la columna “Resolución Directoral que aprueba el componente existente”, precisando si los componentes corresponden a modificaciones aprobadas en la R.D. N° 003-2008-MEM/AAM o son componentes por implementar. b) Corregir y/o sustentar el Cuadro 4.2.1 Criterios técnicos para modificaciones de componentes mineros de la U.M. Ticlio; citando el criterio respectivo basado en la norma aprobada mediante la R.M. N° 120-2014- MEM/DM (C.1.11 Exploraciones). Asimismo, deberá corregir el pie de cuadro citado, incorporándolo en la columna respectiva. Las correcciones solicitadas deberán efectuarse en los subsiguientes cuadros de los respectivos capítulos del presente IGA."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Fisico",
+          "observacion": "Se requiere que el Titular corrija el error sobre la cantidad de estaciones meteorológicas empleadas para la caracterización climática del área de estudio, cuyas características deberán de estar descritas en el “Cuadro 8.2.1 Características de las estaciones meteorológicas regionales consideradas” y la “Figura 8.2.1 Estaciones Meteorológicas y Zonas de Vida”. Asimismo, el Titular debe corregir el texto del ítem y los gráficos, en caso corresponda."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Fisico",
+          "observacion": "Se requiere que el Titular corrija en el texto del ítem “8.2.4.2 Capacidad de uso mayor de suelos” y el “Cuadro 8.2.5 Capacidad de uso mayor de suelos”, los porcentajes (%) de las áreas identificadas para las cinco (05) unidades de suelos en la UM Ticlio."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Fisico",
+          "observacion": "Se requiere q titular: a) En la sección 9.6.2.2. Cambio propuesto, describir: - Detalle de la ubicación, vértices en relación con los límites de emplazamiento del componente a implementar tanto para la cancha de Zn como para la cancha de Cobre. - Características de diseño (taludes, relleno estructural, diseño de cunetas, etc.). - Cantidad estimada de remoción, manejo y lugares de almacenamiento temporal del top soil. - Manejo de aguas, presentar el esquema global de manejo, derivación e incorporación del sistema propuesto al sistema de manejo de aguas existente. - Manejo de RR.SS. presentar el esquema global de manejo, derivación e incorporación del sistema propuesto al sistema de manejo de RR. SS existente; asimismo, precisar el manejo y lugar de disposición final del excedente de corte. - Descripción del proceso constructivo del componente, especificando las actividades a realizar. - Descripción del proceso operativo del componente, especificando las actividades a realizar. En base a lo solicitado en el acápite D. Contenido Mínimo del Informe Técnico Sustentatorio (ITS) de la R.M. 120-2014-MEM/DM y el Artículo 41° del D.S. 040-2014-EM. b) Corregir el plano P.RES-MT-001, de manera que se aprecie el detalle de los polígonos correspondientes a la distribución del componente planteado; asimismo, incorporar la respectiva leyenda, simbología, firma del profesional responsable, geo referenciación en WGS 84 y especificaciones necesarias para su lectura y comprensión; tal como se solicita en el artículo 45, del capítulo 2 del D.S.040-2014-EM."
+        }
+      ]
+    },
+    {
+      "categoria": "Contradiccion o inconsistencia interna",
+      "cantidad": 1138,
+      "porcentaje": 5.5,
+      "ejemplos": [
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Social",
+          "observacion": "Se requiere que el Titular precise si la Comunidad Campesina de San Francisco de Asís forma parte del área de influencia conforme al IGA aprobado, así como la totalidad de la Comunidad Campesina de San Mateo de Huanchor, toda vez que mediante el ITS no se aprueban nuevas áreas de influencia social. Además, deberá aclarar la inconsistencia del mapa de área de influencia social directa conforme al IGA vigente aprobada, debiendo superponerse las localidades del AISD, AISI y los componentes del proyecto del presente ITS."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Descripcion de Proyectos",
+          "observacion": "Se requiere que el Titular: a) En la sección 9.6.4.1 Justificación del cambio, aclarar la longitud de accesos propuesta y la longitud de accesos final de la U, M b) En la sección 9.6.3.2. Cambio propuesto, describir: - Detalle de la ubicación de los accesos y relación con los componentes propuestos, - Características de diseño (longitud, ancho de vía, taludes, metraje de corte y relleno, diseño de cunetas, etc.). - La cantidad estimada de remoción, manejo y lugares de almacenamiento temporal del top soil. - Manejo de aguas; presentar el esquema de manejo, derivación e incorporación del sistema propuesto al sistema de manejo de aguas existente. - Manejo de RR.SS. sustentar volúmenes de generación, transporte y disposición final del material a generar. - El proceso constructivo de los componentes, especificando las actividades a realizar. - El proceso operativo de los componentes, especificando las actividades a realizar. En base a lo solicitado en el acápite D. Contenido Mínimo del Informe Técnico Sustentatorio (ITS) de la R.M. 120-2014-MEM/DM y el Artículo 41° del D.S. 040-2014-EM. c) Corregir la figura 9.6.1, de manera que se aprecie los componentes aprobados y propuestos, presentar el detalle de los trazos correspondientes a la distribución de los accesos propuestos y existentes; asimismo en la leyenda y simbología describir claramente los componentes para su correcta lectura y comprensión; de acuerdo al sustento indicado."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Descripcion de Proyectos",
+          "observacion": "Se requiere que el Titular revise la información detallada en el capítulo 9 a fin de que toda actividad consignada en el Cuadro 10.2.1 se encuentre desarrollada, con la finalidad de verificar y evaluar los impactos de todas las actividades asociadas a los componentes propuestos. Corregir la figura 9.8.2 y los planos asociados, y por consiguiente, el área efectiva propuesta. Hay que considerar que de existir afectación a la laguna Huacacrocha, mediante ITS no es posible aceptar actividades o componentes que impliquen impacto sobre cuerpos de agua. Verificar que exista coherencia entre el capítulo 9, los planos y el capítulo 10."
+        },
+        {
+          "expediente": "M-ITS-00001-2020",
+          "especialidad_final": "Legal",
+          "observacion": "Se requiere que el Titular: a) Considere en el modelo el ECA aprobado Decreto Supremo N °074-2001- PCM, solo aplicar el ECA 2017 en forma referencial en el análisis de impactos de acuerdo con lo solicitado en la observación N° 23. b) Aclarar que el modelo ha considerado la ingeniería y descripción del proyecto propuesto con respecto a la altura de las rumas, de ser necesario incluir dicha información en el capítulo 9 de tal forma que exista consistencia. c) Justificar el uso de la data del 2017 a fin de que se emplee el año más representativo en relación con la operación del almacén. d) Considerando lo señalado en la observación N° 11 en cuanto a la dirección de viento, se requiere revisar que tanto en el modelamiento como línea base, la información sea consistente. e) Se requiere que el Titular considere todos los valores reportados en la línea base en cada estación, de tal forma que con ello se puedan estimar valores promedio. En caso de no usar ciertos valores para algunos parámetros, es necesario que exista una justificación con respecto a ello, por ejemplo, análisis estadístico. f) Se requiere que el Titular además de analizar las estaciones de monitoreo, considere calcular los aportes que llegan a los receptores sensibles determinados en el EIA (incluir una tabla). Para el caso de la estación DCM- PMCA-05, considerarla como el receptor Islay- plaza. Asimismo, modificar la tabla 26 de tal forma que en esta se consigne por un lado el aporte calculado con el software y por otro el valor de fondo calculado con los datos de monitoreo, incluyendo el valor final proyectado el cual deberá ser comparado con el ECA aprobado en el EIA. g) Incluir en las figuras que muestran las isoconcentraciones calculadas, las estaciones de monitoreo y los receptores sensibles. Sustentar por qué no se ha considerado la evaluación de plomo como lo realiza el EIA, en ese sentido considerar los descrito en el capítulo 9."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Social",
+          "observacion": "Se requiere que el Titular precise si la Comunidad Campesina de San Francisco de Asís forma parte del área de influencia conforme al IGA aprobado, así como la totalidad de la Comunidad Campesina de San Mateo de Huanchos, toda vez que mediante el ITS no se aprueban nuevas áreas de influencia social. Se requiere que el Titular aclare la inconsistencia del mapa de área de influencia social directa conforme al IGA vigente aprobada. Se requiere que presente el Titular en mapa las localidades del AISD y AISI superponiendo los componentes del proyecto del presente ITS."
+        }
+      ]
+    },
+    {
+      "categoria": "Actualizacion de mapas, planos, figuras o cuadros",
+      "cantidad": 938,
+      "porcentaje": 4.6,
+      "ejemplos": [
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Descripcion de Proyectos",
+          "observacion": "Se requiere que el Titular actualice la Figura 9.5.1, incluyendo el nombre de los componentes aprobados en cada huella que la representa. Tomar en consideración que, si se va a realización modificación de estas huellas, se deberán actualizar los demás mapas o figuras que contengan estas informaciones."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Descripcion de Proyectos",
+          "observacion": "Se requiere que el Titular actualice la Figura 9.5.1, incluyendo el nombre de los componentes aprobados en cada huella que la representa, debiendo tener en consideración que esta huella deberá corresponder a lo aprobado en el EIA 2008. Tomar en consideración que si se va a realización modificación de estas huellas, se deberán actualizar los demás mapas o figuras que contengan estas informaciones."
+        },
+        {
+          "expediente": "M-ITS-00001-2020",
+          "especialidad_final": "Impactos",
+          "observacion": "Se requiere al Titular verificar y en caso corresponda, actualizar la Tabla 10-1 Actividades del ITS, con potencial de generar impactos, Tabla 10-6 y Tabla 10-8, matrices de identificación y evaluación de impactos. Asimismo, debe considerarse el análisis de atributos para las actividades del proyecto."
+        },
+        {
+          "expediente": "M-ITS-00001-2020",
+          "especialidad_final": "Impactos",
+          "observacion": "Se requiere al Titular verificar y en caso corresponda, actualizar la Tabla 10-1 Actividades del ITS, con potencial de generar impactos, Tabla 10-6 y Tabla 10- 8, matrices de identificación y evaluación de impactos. Asimismo, debe considerarse el análisis de atributos para las actividades del proyecto."
+        },
+        {
+          "expediente": "M-ITS-00001-2022",
+          "especialidad_final": null,
+          "observacion": "Se requiere al Titular verificar y corregir las coordenadas del área de actividad propuesta, debiendo solo modificarla en zonas de las canteras. Debiendo actualizar los Cuadros del área de actividad minera en el capítulo, así como su respectivo archivo CSV cargado en EVA. Asimismo, considerar los cambios que puedan ocurrir por las observaciones relacionadas a la propuesta de Canteras."
+        }
+      ]
+    },
+    {
+      "categoria": "Omision de analisis o evaluacion",
+      "cantidad": 717,
+      "porcentaje": 3.5,
+      "ejemplos": [
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Descripcion de Proyectos",
+          "observacion": "Se requiere que el Titular no incluya en la descripción del ítem 7.1.1 el área efectiva presentado dentro de la Actualización del Plan de Cierre de Minas, omitiendo de presentar además los cuadros de coordenadas y las delimitaciones de estas áreas de la Figura 7.1.1, así como de cualquier otro mapa o figura que presente estas áreas. En su lugar, el ítem 7.1.1 debería indicar que existe un área de proyecto incluida en el EIA 2008 (verificar mapa de concesiones mineras del EIA en mención), lo cual debería reflejarse en la Figura 7.1.1."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Descripcion de Proyectos",
+          "observacion": "Se requiere que el Titular no incluya en la descripción del ítem 7.1.1 el área efectiva presentado dentro de la Actualización del PCM, omitiendo de presentar además los cuadros de coordenadas y las delimitaciones de estas áreas de la Figura 7.1.1, así como de cualquier otro mapa o figura que presente estas áreas. En su lugar, el ítem 7.1.1 debería mantener la descripción que indica que la UM no cuenta con un área efectiva aprobada, pero añadiendo que existe un área de proyecto incluida en el EIA 2008 (verificar mapa de concesiones mineras del EIA en mención). Para la Figura 7.1.1, se recomienda remplazar las áreas de actividad y de uso minero inicialmente incluidas por el área de proyecto del EIA 2008 mencionado anteriormente, y consignando en la leyenda el IGA en mención."
+        },
+        {
+          "expediente": "M-ITS-00001-2020",
+          "especialidad_final": "Fisico",
+          "observacion": "Se requiere que el Titular realice un análisis detallado por cada parámetro, ene se sentido considerar: a) Incluir información del año 2019 a fin de poder contar con información actualizada que caracterice la concentración de metales en el suelo. b) Adicionalmente al análisis presentado, con respecto al arsénico, analice las excedencias en función a los reportes de la línea base (tabla 8-9) a fin de determinar en qué estaciones se presentan las excedencias, señale si el parámetro se asocia o no la actividad actual del almacén y precise otras fuentes existentes en el entorno. Incluir, asimismo, un análisis de tendencia de cómo se comporta el parámetro para las estaciones que reportan más excedencias en los años de evaluación. c) Adicionalmente al análisis presentado, con respecto al cobre, analice las excedencias en función a los reportes de la línea base (tabla 8-9) a fin de determinar en qué estaciones se presentan las excedencias, señale si el parámetro se asocia o no la actividad actual del almacén y precise otras fuentes existentes en el entorno. Incluir, asimismo, un análisis de tendencia de cómo se comporta el parámetro para las estaciones que reportan más excedencias en los años de evaluación. d) Adicionalmente al análisis presentado, con respecto al plomo, analice las excedencias en función a los reportes de la línea base (tabla 8-9) a fin de determinar en qué estaciones se presentan las excedencias, señale si el parámetro se asocia o no la actividad actual del almacén y precise otras fuentes existentes en el entorno. Incluir, asimismo, un análisis de tendencia de cómo se comporta el parámetro para las estaciones que reportan más excedencias en los años de evaluación e) Adicionalmente al análisis presentado, con respecto al zinc, analice las excedencias en función a los reportes de la línea base (tabla 8-9) a fin de determinar en qué estaciones se presentan las excedencias, señale si el parámetro se asocia o no la actividad actual del almacén y precise otras fuentes existentes en el entorno. f) En caso cuente con un ISC aprobado, señalarlo e incluir en forma introductoria al inicio del ítem 8.2.6, si dicho informe indica que existe excedencias debido a situaciones naturales en el área del proyecto, o si ha determinado que procede realizar un plan de descontaminación. g) Finalmente, considerando los resultados del análisis presentado, proponer medidas de manejo que garanticen que los aportes del almacén se evitarán o minimizarán, en ese sentido desarrollar dichas medidas en la estrategia de manejo (capítulo 11), indicando las medidas adicionales propuestas en relación a calidad de suelo."
+        },
+        {
+          "expediente": "M-ITS-00001-2022",
+          "especialidad_final": "Descripcion de Proyectos",
+          "observacion": "El Titular deberá presentar sustento técnico de no afectación al humedal La Pampa u otras unidades de vegetación por efecto de la dispersión de contaminantes. Junto con ello, debe presentar los mapas de dispersión atmosférica de contaminantes superpuestos con la ubicación de las unidades de vegetación, con el fin de determinar que no haya afectación al humedal La Pampa, presente en el área de estudio. El Titular deberá corregir, aclarar y/o modificar las unidades de vegetación consideradas a intervenir en los cuadros 10.4-27, 10.4-28, figura 10.4-10 y en las descripciones de los impactos por Pérdida de cobertura vegetal y Pérdida de hábitat para flora y la fauna. Asimismo, de acuerdo a la uniformización solicitada, deberá reevaluar y/o replantear los valores asignados, a dichos impactos, incluyendo la afectación a generar a la vegetación de roquedal por las modificaciones propuestas en todos los componentes, incluyendo el componente de “canteras”. Se requiere que el Titular realicen en el capítulo de impactos, respecto a las Canteras 1, 5-A y 7, lo siguiente: a) Señalé el número de familias y personas que habitan en el terreno superficial de las canteras indicadas. b) Describir e indicar el número y tipo de infraestructura existente en el terreno superficial de las áreas de ubicación de las canteras indicadas. c) Describir y señalar los usos por parte de las familias ubicadas ahí o de la población de los sectores (El Alizar/La Pampa) de los terrenos que se observan en las imágenes con cobertura vegetal, indicando si son de cultivos, pasos para el ganado etc. d) Reducir o reubicar el área de las canteras, considerando que la nueva ubicación y/ o nueva área debe tener como resultado una evaluación de impactos de importancia no significativa en aire y ruido, así como en el aspecto social. Ello se solicita en virtud que una evaluación de impactos, que implique afectar viviendas o terrenos que usa las familias ahí ubicadas de los sectores El Alizar y La Pampa, generaría un impacto de importancia moderada o alta, dado que se trata de infraestructura y medios de vida, lo cual no procede a través de un ITS. e) Proponer las medidas de manejo correspondientes. f) Presentar el mapa de la propiedad superficial en formato KMZ Se requiere que el Titular indique en el capítulo de impactos la vivienda, infraestructura o terreno (cultivo/pastos) más cercano en relación a los componentes indicados en el siguiente cuadro: Respecto a las Canteras 1,5A y 7, indicar las nuevas distancias, dada la reubicación o reducción de las canteras solicitadas en la observación anterior, entre los componentes indicados en el cuadro y la vivienda, terreno (cultivo/pastos) u otra infraestructura más cercana. De igual modo, considerar la evaluación de impactos de los componentes a modificar y los proyectas en el aspecto social, consideran que el resultado de la significancia debe salir no significativo o nulo (ausencia de impactos) considerando el análisis de resultado de impactos en calidad de aire y ruido. Finalmente, considerar las medidas de manejo correspondientes. En caso de incluir riego, indicar la frecuencia del mismo. El Titular deberá presentar medidas y/o protocolos de manejo y protección a seguir, en caso se encuentre especies de flora en estatus de conservación según listados nacionales e internacionales, en todas las unidades de vegetación donde corresponda la intervención de nuevas áreas por las actividades propuestas en el Quinto ITS La Arena."
+        },
+        {
+          "expediente": "M-ITS-00001-2020",
+          "especialidad_final": "Fisico",
+          "observacion": "Se requiere que el Titular realice un análisis detallado por cada parámetro, ene se sentido considerar: a) Incluir información del año 2019 a fin de poder contar con información actualizada que caracterice la concentración de metales en el suelo. b) Adicionalmente al análisis presentado, con respecto al arsénico, analice las excedencias en función a los reportes de la línea base (tabla 8-9) a fin de determinar en qué estaciones se presentan las excedencias, señale si el parámetro se asocia o no la actividad actual del almacén y precise otras fuentes existentes en el entorno. Incluir, asimismo, un análisis de tendencia de cómo se comporta el parámetro para las estaciones que reportan más excedencias en los años de evaluación. c) Adicionalmente al análisis presentado, con respecto al cobre, analice las excedencias en función a los reportes de la línea base (tabla 8-9) a fin de determinar en qué estaciones se presentan las excedencias, señale si el parámetro se asocia o no la actividad actual del almacén y precise otras fuentes existentes en el entorno. Incluir, asimismo, un análisis de tendencia de cómo se comporta el parámetro para las estaciones que reportan más excedencias en los años de evaluación. d) Adicionalmente al análisis presentado, con respecto al plomo, analice las excedencias en función a los reportes de la línea base (tabla 8-9) a fin de determinar en qué estaciones se presentan las excedencias, señale si el parámetro se asocia o no la actividad actual del almacén y precise otras fuentes existentes en el entorno. Incluir, asimismo, un análisis de tendencia de cómo se comporta el parámetro para las estaciones que reportan más excedencias en los años de evaluación e) Adicionalmente al análisis presentado, con respecto al zinc, analice las excedencias en función a los reportes de la línea base (tabla 8-9) a fin de determinar en qué estaciones se presentan las excedencias, señale si el parámetro se asocia o no la actividad actual del almacén y precise otras fuentes existentes en el entorno. f) En caso cuente con un ISC aprobado, señalarlo e incluir en forma introductoria al inicio del ítem 8.2.6, si dicho informe indica que existe excedencias debido a situaciones naturales en el área del proyecto, o si ha determinado que procede realizar un plan de descontaminación g) Finalmente, considerando los resultados del análisis presentado, proponer medidas de manejo que garanticen que los aportes del almacén se evitarán o minimizarán, en ese sentido desarrollar dichas medidas en la estrategia de manejo (capítulo 11), indicando las medidas adicionales propuestas en relación a calidad de suelo."
+        }
+      ]
+    },
+    {
+      "categoria": "Ampliacion de alcance solicitado",
+      "cantidad": 71,
+      "porcentaje": 0.3,
+      "ejemplos": [
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Biologico",
+          "observacion": "a) Se requiere que el Titular incluya la evaluación de los impactos hacia la fauna terrestre, principalmente de la mastofauna menor y herpetofauna, considerando que su área de desplazamiento pueda ser colindante a los componentes propuestos, así como a los accesos hacia las plataformas. b) Se requiere que el Titular describa la evaluación de los impactos sobre la fauna terrestre, principalmente de la mastofauna menor y herpetofauna, de acuerdo a su área de desplazamiento, la cual puede estar conexa a los componentes propuestos; además, incluir la evaluación de los impactos por las vibraciones y efluentes que se generen en la etapa de operaciones debido a las perforaciones hacia la fauna terrestre; además, sobre la fauna que habita los bofedales y lagunas cercanos a las actividades de esta etapa."
+        },
+        {
+          "expediente": "M-ITS-00001-2019",
+          "especialidad_final": "Biologico",
+          "observacion": "a) Se requiere que el Titular incluya la evaluación de los impactos hacia la fauna terrestre, principalmente de la mastofauna menor y herpetofauna, considerando que su área de desplazamiento pueda ser colindante a los componentes propuestos, así como a los accesos hacia las plataformas. b) Se requiere que el Titular describa la evaluación de los impactos sobre la fauna terrestre, principalmente de la mastofauna menor y herpetofauna, de acuerdo a su área de desplazamiento, la cual puede estar conexa a los componentes propuestos; además, incluir la evaluación de los impactos por las vibraciones y efluentes que se generen en la etapa de operaciones debido a las perforaciones hacia la fauna terrestre; además, sobre la fauna que habita los bofedales y lagunas cercanos a las actividades de esta etapa."
+        },
+        {
+          "expediente": "M-ITS-00021-2022",
+          "especialidad_final": "Biologico",
+          "observacion": "Se requiere que el Titular, incluya la evaluación del impacto potencial de alteración y/o disminución de la capacidad fotosintética de la vegetación en las zonas donde se generará material particulado por las actividades propuestas en el proyecto, en cada una de sus etapas (tablas 10.3.1, 10.3.2 y 10.3.3). Asimismo, incluir en su evaluación, valoración y descripción del impacto mencionado la posible afectación al centro de agrobiodiversidad cercano a los componentes de “Perforaciones para confirmación de reservas” y “Ampliación del Tajo Chalarina”. De corresponder, el Titular deberá corregir textos, tablas, anexos, descripciones, entre otros, de modo que las modificaciones guarden concordancia en todos los capítulos del Séptimo ITS U.M. Shahuindo."
+        },
+        {
+          "expediente": "M-ITS-00026-2019",
+          "especialidad_final": "Fisico",
+          "observacion": "Se requiere que el Titular, en el ítem 10.3: a) Incluya un cuadro con las distancias de los componentes propuestos en el presente ITS a los cuerpos de agua, asimismo complemente el sustento de no afectación a la calidad de agua superficial precisando el manejo y disposición de los efluentes líquidos provenientes de los frentes de trabajo durante la etapa de construcción, complemente el sustento de no afectación a la cantidad de agua superficial precisando el volumen de agua que empleará en las actividades de construcción y el volumen de agua autorizado para uso. En caso los componentes propuestos se encuentren próximos (a menos de 50 m) de los cuerpos de agua, el Titular deberá incluir medidas de manejo para prevenir la ocurrencia del impacto. b) En la etapa de operación, complemente el sustento del no impacto a la calidad del agua superficial precisando como se realizará el manejo o disposición del agua de rechazo proveniente del sistema de ósmosis inversa, de los residuos líquidos provenientes de las actividades de lavado del taller de mantenimiento, de los residuos líquidos de las pruebas metalúrgicas de concentrados de cobre en la planta LESDE y de los efluentes del sistema de manejo de filtraciones del embalse de relaves. c) En la etapa de operación, incluya en el sustento la no afectación a la cantidad de las aguas superficiales precisando el volumen de agua requerido en la etapa de operación de los componentes propuestos en comparación con el volumen de uso autorizado. d) Incluya el sustento técnico de no afectación a la calidad y cantidad de aguas subterráneas."
+        },
+        {
+          "expediente": "M-ITS-00026-2019",
+          "especialidad_final": "Fisico",
+          "observacion": "Se requiere que el Titular, en el ítem 10.3: a) Incluya un cuadro con las distancias de los componentes propuestos en el presente ITS a los cuerpos de agua, asimismo complemente el sustento de no afectación a la calidad de agua superficial precisando el manejo y disposición de los efluentes líquidos provenientes de los frentes de trabajo durante la etapa de construcción, complemente el sustento de no afectación a la cantidad de agua superficial precisando el volumen de agua que empleará en las actividades de construcción y el volumen de agua autorizado para uso. En caso los componentes propuestos se encuentren próximos (a menos de 50 m) de los cuerpos de agua, el Titular deberá incluir medidas de manejo para prevenir la ocurrencia del impacto. b) En la etapa de operación, complemente el sustento del no impacto a la calidad del agua superficial precisando como se realizará el manejo o disposición del agua de rechazo proveniente del sistema de ósmosis inversa, de los residuos líquidos provenientes de las actividades de lavado del taller de mantenimiento, de los residuos líquidos de las pruebas metalúrgicas de concentrados de cobre en la planta LESDE y de los efluentes del sistema de manejo de filtraciones del embalse de relaves. c) En la etapa de operación, incluya en el sustento la no afectación a la cantidad de las aguas superficiales precisando el volumen de agua requerido en la etapa de operación de los componentes propuestos en comparación con el volumen de uso autorizado. d) Incluya el sustento técnico de no afectación a la calidad y cantidad de aguas subterráneas. contempla el humedecimiento de tierras a fin de evitar la dispersión de material particulado que pueda afectar a la laguna. Además, se verificó que el acceso temporal (del componente: reubicación y mejoras de la S.E. Quebrada Honda y Nuevo Trazo de Línea de Transmisión Eléctrica de 13,8 kV) cruzará las quebradas S/N2, Lloquene, S/N3, Purgatorio, S/N4, S/N5 y quebrada Honda; en ese sentido, el Titular señala que las mencionadas quebradas convergen en el Embalse de Relaves de Quebrada Honda (ERQH) el mismo que aguas abajo del dique principal cuenta con un sistema de captación de las aguas de filtración, asimismo menciona que los accesos propuestos en el presente ITS no intervienen nuevas quebradas ya que, estas quebradas (tramos finales), han sido intervenidas aguas arriba y aguas abajo por los accesos proyectados como parte del EIA del Proyecto Ampliación Toquepala y por los accesos que fueron habilitados como parte de la implementación de la línea de transmisión eléctrica existente (descrita en el PAMA) paralela a los accesos propuestos; también hace mención al Oficio N° 193-2010-ANA-ALA LOCUMBA-SAMA de la Autoridad Local del Agua Locumba Sama, donde se indica que las aguas que discurren por Quebrada Honda son producto de las aguas decantadas de los relaves de los centros mineros Toquepala y Cuajone; este recurso hídrico discurre aguas abajo de la cancha de relaves del mismo nombre y que la zona en consulta no es un cuerpo de agua natural continental. Sin embargo, en el mapa de accesos existentes y proyectados zona quebrada Honda (Anexo 9.13) se visualiza que el área aguas arriba de los accesos existentes (zona donde se propone la construcción de los accesos proyectados) es un área no disturbada por donde se emplazan las quebradas S/N2, Lloquene, S/N3, Purgatorio, S/N4, S/N5 y quebrada Honda. Cabe mencionar, que el Oficio N° 193-2010-ANA-ALA LOCUMBA-SAMA, señala que las aguas decantadas de los relaves que discurren por la quebrada Honda (aguas abajo del embalse de relaves) no es un cuerpo de agua natural; por lo tanto, las mencionadas quebradas sí constituyen cuerpos de agua naturales; sin embargo, en la descripción del proyecto, el Titular no precisa qué infraestructuras se implementarán en los cruces con estas quebradas, lo cual no permite determinar si hay o no afectación a los cuerpos de agua y de acuerdo al literal B de la R.M N° 120- 2014-MEM/DM, los componentes propuestos en el ITS No deberían ubicarse sobre ni impactar cuerpos de agua. b) En el ítem 10.3.2.5, sustenta la no afectación a los cuerpos de agua, precisando que el agua de rechazo del sistema de ósmosis se evacuará hacia un tanque séptico existente, asimismo se recirculará el 50% del agua de rechazo. El agua producto del lavado de componentes será almacenada en un tanque o poza para luego ser reusada. En las pruebas de lixiviación de concentrados de cobre no se generarán efluentes y las actividades de operación del sistema de manejo de filtraciones del embalse de relaves Quebrada Honda no generarán efluentes líquidos, sin embargo, se generarán efluentes de lodos los cuales serán derivados a través de bombas hacia el embalse de relaves de quebrada Honda. c) Señala que durante la etapa de operación se espera un consumo diario de 670 m3 de agua, lo cual representa el 0,4% del volumen de agua autorizado en las licencias de uso. d) Ha incluido el sustento técnico de no afectación de las aguas subterráneas indicando que las actividades de construcción y operación se llevarán a cabo a nivel superficial y no comprenderán el uso de agua subterránea adicional a lo aprobado por la autoridad competente."
+        }
+      ]
+    },
+    {
+      "categoria": "Incumplimiento normativo explicito",
+      "cantidad": 8,
+      "porcentaje": 0.0,
+      "ejemplos": [
+        {
+          "expediente": "M-ITS-00040-2024",
+          "especialidad_final": "Descripcion de Proyectos",
+          "observacion": "Se requiere al Titular, acreditar que los sitios arqueológicos superpuestos con el trazo del objetivo Modificación de la Línea de Transmisión Eléctrica de 220 kV (Línea L-2074) e implementación de accesos, fueron considerados en la MEIA-d a fin de confirmar el cumplimiento del supuesto indicado en el literal e) del artículo 132.5 del Reglamento de Protección y gestión Ambiental para las Actividades de Explotación, Beneficio, Labor General, Transporte y Almacenamiento Minero, aprobado por el Decreto Supremo N° 040-2014-EM, que dispone “(…) e.) No afectar zonas arqueológicas, no consideradas en el instrumento de gestión ambiental aprobada y vigente.” (Resaltado agregado)."
+        },
+        {
+          "expediente": "M-ITS-00303-2023",
+          "especialidad_final": "Descripcion de Proyectos",
+          "observacion": "Se requiere del titular: a. Describir la justificación técnica para la implementación de la PTARG. Asimismo, describir la situación actual del manejo de efluentes domésticos. Además, presentar información sobre la superficie y el perímetro correspondiente que ocuparía la PTARG. b. Proponer medidas de estabilidad física en la zona cercana a la cárcava donde se ubicaría la PTARG con la finalidad de evitar posibles eventos de deslizamientos y/o derrumbes durante época de avenida y/o precipitaciones intensas. Asimismo, deberá retirar el texto “En época de avenida se dispondrá para vertimiento en quebradas o cursos de agua”, por las razones señaladas en el sustento de la observación. Además, corregir la normativa aplicable para la caracterización del agua a utilizar en riego, debiendo considerar para el efluente el cumplimiento de la norma de efluentes domésticos (D.S. N° 003-2010- MINAM) y de manera complementaria los parámetros microbiológicos y parasitológicos del ECA Categoría 3 para riego no restringido. c. Señalar el IGA de aprobación del campamento donde se generan los efluentes que serán tratados en la PTARG, así como el volumen generado actualmente. d. Describir y presentar en un cuadro resumen el diseño de la PTARG propuesta el cual deberá ser concordante con el diseño señalado en la memoria descriptiva del Anexo 09- 1.23, asimismo, indicar las condiciones iniciales del efluente sin tratar y las condiciones finales del efluente tratado, y la normativa aplicable para la caracterización del agua a utilizar en riego, en concordancia con lo mencionado en el literal “b”. e. Precisar el área a desbrozar durante la construcción de la PTARG y por cada unidad de vegetación, representándolos en un mapa a una escala adecuada. Además, deberá indicar las especies de flora predominantes que se van a desbrozar, su respectivo hábito de crecimiento (herbáceas, arbustivas, arbóreas, etc.) y clasificación en alguna categoría de conservación o amenaza nacional, internacional, o en condición de endemismo, de corresponder. Asimismo, deberá identificar, evaluar y caracterizar el impacto a las especies de flora listadas en categoría de amenaza, conservación o en condición de endemismo, según corresponda. Por otro lado, deberá indicar el volumen de topsoil por remover y el manejo que se les dará. De igual modo, precisar la procedencia del relleno y estimar el excedente generado, así como su disposición final. f. Precisar la fuente de consumo de agua la etapa constructiva. De utilizar fuentes propias, sustentar la disponibilidad de agua mediante balances, adjuntando las licencias y/o autorizaciones vigentes. Además, indicar la fuente de energía eléctrica para ambas etapas. Por otro lado, deberá incorporar un ítem respecto a los materiales y/o insumos por utilizar durante las etapas de construcción y operación, y precisar la fuente de abastecimiento del combustible y si será almacenará en obra o no, debiendo garantizar su adecuado almacenamiento y medidas de contención en caso corresponda. g. Indicar cual será el manejo y disposición final de los residuos y lodos y lixiviados por generar en las etapas de construcción y operación, según corresponda. Asimismo, presentar el diseño del lecho de secado, incluyendo su sistema de impermeabilización y manejo de lixiviados. Además, corregir lo señalado respecto a la no generación de efluentes domésticos durante la etapa constructiva y operativa, estimando los volúmenes por generar y el manejo y disposición de estos. Asimismo, precisar si habilitarán o no campamentos durante la construcción que pudieran generar efluentes distintos a los señalados y su respectivo manejo. h. Presentar un cronograma indicando los plazos y secuencias de ejecución de todas las actividades descritas en el numeral A) del ítem 9.7.3.6.4."
+        },
+        {
+          "expediente": "M-ITS-00239-2024",
+          "especialidad_final": "Sig",
+          "observacion": "Se requiere al Titular sustentar técnicamente, en el capítulo 10 del Cuarto ITS Shougang, que los impactos asociados a los componentes cercanos al límite del AIAD se encuentran completamente contenidos dentro de la delimitación aprobada. Este sustento deberá basarse en las actividades previstas en las etapas de construcción y operación, y considerar estudios técnicos específicos, como modelos numéricos u otros análisis pertinentes, que soporten adecuadamente el argumento presentado. Asimismo, en el ítem 7.1, deberá incluirse un breve resumen de este sustento y complementarlo con información relacionada con los criterios de delimitación del AIAD aprobados en la MEIA 2021 (p. ej., factores AIAD paisaje, AIAD aire u otros), que permitan verificar que los impactos generados por la implementación de los componentes del ITS se encuentran dentro de los límites del AIAD. Por otro lado, el Titular deberá actualizar el Mapa SHP-05, incorporando una visualización más detallada de los límites del AIAD en los sectores donde los componentes propuestos se encuentren muy cercanos a dicho límite. Esta actualización deberá incluir una representación gráfica clara que precise las distancias de separación entre los componentes y el límite del AIAD."
+        },
+        {
+          "expediente": "M-ITS-00239-2024",
+          "especialidad_final": "Sig",
+          "observacion": "Se requiere al Titular sustentar técnicamente, en el capítulo 10 del Cuarto ITS Shougang, que los impactos asociados a los componentes cercanos al límite del AIAD se encuentran completamente contenidos dentro de la delimitación aprobada. Este sustento deberá basarse en las actividades previstas en las etapas de construcción y operación, y considerar estudios técnicos específicos, como modelos numéricos u otros análisis pertinentes, que soporten adecuadamente el argumento presentado. Asimismo, en el ítem 7.1, deberá incluirse un breve resumen de este sustento y complementarlo con información relacionada con los criterios de delimitación del AIAD aprobados en la MEIA 2021 (p. ej., factores AIAD paisaje, AIAD aire u otros), que permitan verificar que los impactos generados por la implementación de los componentes del ITS se encuentran dentro de los límites del AIAD. Por otro lado, el Titular deberá actualizar el Mapa SHP-05, incorporando una visualización más detallada de los límites del AIAD en los sectores donde los componentes propuestos se encuentren muy cercanos a dicho límite. Esta actualización deberá incluir una representación gráfica clara que precise las distancias de separación entre los componentes y el límite del AIAD."
+        },
+        {
+          "expediente": "M-ITS-00299-2024",
+          "especialidad_final": "Fisico",
+          "observacion": "Se requiere al Titular desarrollar las medidas del plan de Manejo de Residuos Sólidos conforme el Contenido Mínimo del Plan de Minimización y Manejo de Residuos Sólidos No Municipales” que forma parte del Numeral II del anexo de la R.M. N°089-2023-MINAM."
+        }
+      ]
+    }
+  ]
+}
