@@ -43,7 +43,7 @@ import base64
 import os
 import re
 import unicodedata
-from supabase import create_client
+from supabase import create_client, ClientOptions
 from postgrest.exceptions import APIError
 
 # ---------------------------------------------------------
@@ -294,7 +294,12 @@ MODELO_EMBEDDING = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 def conectar_supabase():
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_ANON_KEY"]
-    return create_client(url, key)
+    # Timeout explicito (20s por pedido): sin esto, si Supabase esta
+    # lento o "dormido" (plan gratuito se pausa por inactividad), la
+    # app se queda con el spinner de carga trabado indefinidamente en
+    # vez de mostrar un error que se pueda reintentar.
+    opciones = ClientOptions(postgrest_client_timeout=20)
+    return create_client(url, key, options=opciones)
 
 
 @st.cache_resource(show_spinner="Cargando el modelo de busqueda semantica (primera vez tarda un poco)...")
@@ -601,8 +606,6 @@ st.markdown(
 
 st.markdown('<div class="sigo-firma">jlya</div>', unsafe_allow_html=True)
 
-supabase = conectar_supabase()
-
 _placeholder_carga = st.empty()
 _placeholder_carga.markdown(
     """
@@ -614,7 +617,20 @@ _placeholder_carga.markdown(
     """,
     unsafe_allow_html=True,
 )
-datos = cargar_datos_supabase(supabase)
+try:
+    supabase = conectar_supabase()
+    datos = cargar_datos_supabase(supabase)
+except Exception as e:
+    _placeholder_carga.empty()
+    st.error(
+        "⚠️ No se pudo conectar con la base de datos (Supabase no respondió a "
+        f"tiempo o hubo un error de conexión).\n\nDetalle tecnico: `{e}`"
+    )
+    if st.button("🔄 Reintentar"):
+        st.cache_resource.clear()
+        st.cache_data.clear()
+        st.rerun()
+    st.stop()
 _placeholder_carga.empty()
 
 if datos is None:
