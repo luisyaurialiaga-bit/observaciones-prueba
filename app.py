@@ -49,7 +49,7 @@ from postgrest.exceptions import APIError
 # ---------------------------------------------------------
 # Configuracion general
 # ---------------------------------------------------------
-st.set_page_config(page_title="Sistema ITS SENACE", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="Sistema ITS SENACE", page_icon=":material/shield:", layout="wide")
 
 # Reduce el espacio en blanco de arriba (Streamlit deja bastante margen
 # por defecto antes del contenido) para aprovechar mejor la pantalla.
@@ -82,72 +82,203 @@ st.markdown(
             font-family: Calibri, "Segoe UI", sans-serif !important;
         }
 
-        /* Fondo de marca (Lila Sugle) */
+        /* Fondo general: gris muy claro con tinte lila -- antes era el
+        lila solido de marca en TODA la pantalla, lo que no dejaba
+        resaltar las tarjetas blancas (formulario, sidebar activo,
+        etc.). El lila de marca fuerte ahora vive solo en el sidebar. */
         .stApp {
-            background-color: #E5DBEB;
+            background-color: #F4F1F7;
         }
         /* La barra superior de Streamlit (donde sale "Deploy") trae su
         propio fondo blanco por defecto -- la hacemos transparente para
-        que se vea el mismo lila de fondo, sin una franja blanca arriba. */
+        que se vea el mismo fondo de la app, sin una franja blanca arriba. */
         header[data-testid="stHeader"] {
             background-color: transparent;
         }
 
-        /* Botones primarios (ej. "Buscar Observaciones") */
-        .stButton > button[kind="primary"] {
+        /* Botones primarios (ej. "Buscar Observaciones"). El selector
+        NO se limita a ".stButton > button" a proposito: los botones de
+        formulario (st.form_submit_button) viven en un contenedor
+        distinto (stFormSubmitButton), y con el selector viejo nunca
+        heredaban el morado de marca -- por eso salian en rojo, el
+        color por defecto de Streamlit. */
+        button[kind="primary"] {
             background-color: #A02671; /* Morado Barney */
             color: #FFFFFF;
             border: none;
+            border-radius: 8px;
         }
-        .stButton > button[kind="primary"]:hover {
+        button[kind="primary"]:hover {
             background-color: #3F1840; /* Morado Vino */
             color: #FFFFFF;
         }
 
-        /* Botones secundarios */
-        .stButton > button[kind="secondary"] {
-            background-color: #673366; /* Morado Uva */
+        /* Botones secundarios: pill blanco con borde lila (usado en
+        "Reintentar" y en los chips de accesos rapidos/busquedas
+        recientes de la pestaña de Busqueda). */
+        button[kind="secondary"] {
+            background-color: #FFFFFF;
+            color: #673366; /* Morado Uva */
+            border: 1px solid #D9CCE3;
+            border-radius: 999px;
+        }
+        button[kind="secondary"]:hover {
+            background-color: #F4E9F1;
+            color: #3F1840; /* Morado Vino */
+            border-color: #A02671;
+        }
+
+        /* Sidebar de navegacion (reemplaza las pestañas de arriba). */
+        [data-testid="stSidebar"] {
+            background-color: #3F1840; /* Morado Vino */
+        }
+        [data-testid="stSidebar"] > div {
+            padding-top: 1.4rem;
+        }
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] span,
+        [data-testid="stSidebar"] label {
+            color: #E5DBEB;
+        }
+        [data-testid="stSidebar"] .stButton > button {
+            width: 100%;
+            text-align: left;
+            justify-content: flex-start;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-weight: 500;
+            font-size: 0.92rem;
+        }
+        /* Item de navegacion INACTIVO: transparente sobre el fondo
+        morado del sidebar. */
+        [data-testid="stSidebar"] button[kind="secondary"] {
+            background-color: transparent;
+            border: none;
+            color: #D9CCE3;
+        }
+        [data-testid="stSidebar"] button[kind="secondary"]:hover {
+            background-color: rgba(255, 255, 255, 0.08);
             color: #FFFFFF;
             border: none;
         }
-        .stButton > button[kind="secondary"]:hover {
-            background-color: #3F1840; /* Morado Vino */
+        /* Item de navegacion ACTIVO: resaltado + barra lateral clara,
+        imitando el mockup. */
+        [data-testid="stSidebar"] button[kind="primary"] {
+            background-color: rgba(255, 255, 255, 0.12);
             color: #FFFFFF;
+            border-left: 3px solid #E5DBEB;
+            border-radius: 8px;
+        }
+        [data-testid="stSidebar"] button[kind="primary"]:hover {
+            background-color: rgba(255, 255, 255, 0.18);
         }
 
-        /* Barra superior de marca "SIGO". El truco de
-        left:50%/margin-left:-50vw hace que la barra ocupe todo el
-        ancho de la pantalla aunque este dentro del contenedor central
-        de Streamlit (que tiene su propio margen a los lados). */
-        .sigo-header {
-            position: relative;
-            left: 50%;
-            right: 50%;
-            margin-left: -50vw;
-            margin-right: -50vw;
-            width: 100vw;
-            margin-top: -1.5rem;
-            margin-bottom: 1.5rem;
-            background-color: #3F1840; /* Morado Vino */
-            padding: 14px 40px;
+        .sigo-sidebar-brand {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            box-sizing: border-box;
+            gap: 10px;
+            padding: 0 12px 20px 12px;
+            margin-bottom: 6px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
         }
-        .sigo-header .sigo-marca {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        .sigo-sidebar-brand img {
+            height: 32px;
         }
-        .sigo-header .sigo-marca img {
-            height: 36px;
-        }
-        .sigo-header .sigo-marca span {
-            color: #FFFFFF;
+        .sigo-sidebar-brand .sigo-sidebar-titulo {
             font-weight: 700;
-            font-size: 1.38rem;
-            letter-spacing: 0.5px;
+            font-size: 1.1rem;
+            color: #FFFFFF;
+            line-height: 1.15;
+        }
+        .sigo-sidebar-brand .sigo-sidebar-subtitulo {
+            font-size: 0.68rem;
+            color: #C6AFCB;
+            line-height: 1.25;
+            margin-top: 2px;
+        }
+
+        .sigo-sidebar-footer {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 18px 12px 6px 12px;
+            margin-top: 18px;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .sigo-sidebar-footer .sigo-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #A02671; /* Morado Barney */
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+        .sigo-sidebar-footer .sigo-sidebar-footer-texto strong {
+            display: block;
+            color: #FFFFFF;
+            font-size: 0.82rem;
+        }
+        .sigo-sidebar-footer .sigo-sidebar-footer-texto span {
+            color: #C6AFCB;
+            font-size: 0.72rem;
+        }
+
+        /* Barra superior del area de contenido (reemplaza el hero
+        morado + el titulo repetido en cada pestaña): titulo/subtitulo
+        de la pagina actual a la izquierda, estadisticas en vivo a la
+        derecha. */
+        .sigo-topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.1rem;
+            border-bottom: 1px solid #E1D6E8;
+        }
+        .sigo-topbar-titulo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #221527;
+            line-height: 1.25;
+        }
+        .sigo-topbar-subtitulo {
+            font-size: 0.92rem;
+            color: #6B5E71;
+            margin-top: 2px;
+        }
+        .sigo-topbar-stats {
+            font-size: 0.85rem;
+            color: #6B5E71;
+            white-space: nowrap;
+            margin-top: 4px;
+            text-align: right;
+        }
+
+        /* Tarjeta blanca del formulario de busqueda -- st.form ya trae
+        su propio contenedor (stForm), asi que solo hay que vestirlo. */
+        [data-testid="stForm"] {
+            background-color: #FFFFFF;
+            border-radius: 12px;
+            padding: 1.6rem 1.8rem;
+            border: 1px solid #E9E1EE;
+            box-shadow: 0 1px 3px rgba(63, 24, 64, 0.06);
+        }
+
+        /* Encabezado chico de las secciones de "accesos rapidos" y
+        "busquedas recientes" debajo del formulario. */
+        .sigo-seccion-chips {
+            margin: 1.5rem 0 0.6rem 0;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #8A7C90;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
 
         /* Firma discreta, fija abajo a la derecha en toda la pantalla */
@@ -161,80 +292,10 @@ st.markdown(
             z-index: 9999;
             pointer-events: none;
         }
-        .sigo-header .sigo-derecha {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-        .sigo-header .sigo-tagline {
-            color: #E5DBEB; /* Lila Sugle */
-            font-size: 0.95rem;
-        }
-        .sigo-header .sigo-avatar {
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            background-color: #A02671; /* Morado Barney */
-            color: #FFFFFF;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 0.8rem;
-            flex-shrink: 0;
-        }
-
-        /* Pestañas: puntito antes del texto + color activo Morado
-        Barney (en vez del rojo por defecto de Streamlit), imitando el
-        mockup de Sugle. */
-        button[data-baseweb="tab"] p {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-        }
-        button[data-baseweb="tab"] p::before {
-            content: "";
-            display: inline-block;
-            width: 6px;
-            height: 6px;
-            min-width: 6px;
-            border-radius: 50%;
-            background-color: #B9A9C4;
-        }
-        button[data-baseweb="tab"][aria-selected="true"] p {
-            color: #A02671 !important;
-        }
-        button[data-baseweb="tab"][aria-selected="true"] p::before {
-            background-color: #A02671;
-        }
-        [data-baseweb="tab-highlight"] {
-            background-color: #A02671 !important;
-        }
-
-        /* Titulo de presentacion debajo de la barra SIGO (20-ago-2026):
-        reemplaza el st.caption chico que decia solo "Matriz de
-        observaciones clasificadas..." por una intro mas protagonista
-        que explica que se puede hacer en la app. */
-        .sigo-intro {
-            margin-bottom: 1.6rem;
-        }
-        .sigo-intro-titulo {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #3F1840; /* Morado Vino */
-            line-height: 1.3;
-            margin-bottom: 4px;
-        }
-        .sigo-intro-subtitulo {
-            font-size: 0.98rem;
-            color: #673366; /* Morado Uva */
-            line-height: 1.5;
-            max-width: 900px;
-        }
 
         /* Pantalla de carga a pantalla completa (19-ago-2026), solo para
         la carga inicial de datos desde Supabase. Reemplaza el mensaje
-        de texto de Streamlit por un fondo lila uniforme con 3 puntos
+        de texto de Streamlit por un fondo uniforme con 3 puntos
         de marca rebotando en el centro -- ver .sigo-loading-overlay
         mas abajo en el codigo Python, donde se muestra/oculta con
         st.empty() alrededor de cargar_datos_supabase(). */
@@ -243,7 +304,7 @@ st.markdown(
             inset: 0;
             width: 100vw;
             height: 100vh;
-            background-color: #E5DBEB; /* Lila Sugle, igual al fondo de la app */
+            background-color: #F4F1F7; /* igual al fondo general de la app */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -268,12 +329,13 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Color de fondo de marca (Lila Sugle) aplicado al "papel" y area de
-# trazado de TODOS los graficos del Dashboard, para que no quede una
-# caja blanca dentro de la pagina lila. OJO: esto es solo el fondo --
-# no toca los colores de barras/lineas/torta de cada grafico (esos se
-# definen aparte, con color_continuous_scale, color_discrete_map, etc.)
-COLOR_FONDO_GRAFICOS = "#E5DBEB"
+# Color de fondo de marca aplicado al "papel" y area de trazado de
+# TODOS los graficos del Dashboard, para que no quede una caja blanca
+# (ni una caja de otro tono) dentro de la pagina. Debe coincidir con
+# el fondo general definido en el CSS de arriba (.stApp). OJO: esto es
+# solo el fondo -- no toca los colores de barras/lineas/torta de cada
+# grafico (esos se definen aparte, con color_continuous_scale, etc.)
+COLOR_FONDO_GRAFICOS = "#F4F1F7"
 
 
 def aplicar_fondo_marca(fig):
@@ -572,37 +634,59 @@ _logo_html = (
     if _logo_b64 else ""
 )
 
-st.markdown(
-    f"""
-    <div class="sigo-header">
-        <div class="sigo-marca">
-            {_logo_html}
-            <span>SIGO</span>
-        </div>
-        <div class="sigo-derecha">
-            <span class="sigo-tagline">Sistema de Inteligencia y Gestión de Observaciones</span>
-            <div class="sigo-avatar">SG</div>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+# ---------------------------------------------------------
+# Sidebar de navegacion (21-ago-2026, reemplaza las pestañas de
+# arriba por un menu lateral tipo SaaS -- ver mockup de referencia).
+# La pagina activa se guarda en session_state para sobrevivir los
+# reruns que dispara Streamlit en cada interaccion.
+# ---------------------------------------------------------
+# Iconos Material Symbols (nativos de Streamlit, sin depender de un
+# CDN externo) en vez de emojis, para un look mas profesional.
+PAGINAS_SIGO = [
+    ("busqueda", ":material/search:", "Búsqueda de Observaciones"),
+    ("consulta", ":material/table_view:", "Consulta General"),
+    ("dashboard", ":material/bar_chart:", "Dashboard & Métricas"),
+    ("evaluador", ":material/psychology:", "Evaluador IA"),
+]
+if "sigo_pagina" not in st.session_state:
+    st.session_state.sigo_pagina = "busqueda"
 
-st.markdown(
-    """
-    <div class="sigo-intro">
-        <div class="sigo-intro-titulo">
-            Toda la memoria técnica de SENACE, lista para consultar
+with st.sidebar:
+    st.markdown(
+        f"""
+        <div class="sigo-sidebar-brand">
+            {_logo_html}
+            <div>
+                <div class="sigo-sidebar-titulo">SIGO</div>
+                <div class="sigo-sidebar-subtitulo">Sistema de Inteligencia y<br>Gestión de Observaciones</div>
+            </div>
         </div>
-        <div class="sigo-intro-subtitulo">
-            Busca por palabra clave o por significado (IA), consulta la matriz completa de
-            observaciones, y descubre tendencias y patrones de exigencia técnica — sobre más de
-            20 500 observaciones históricas de expedientes ITS, normalizadas y clasificadas.
+        """,
+        unsafe_allow_html=True,
+    )
+    for _clave, _icono, _etiqueta in PAGINAS_SIGO:
+        _es_activa = st.session_state.sigo_pagina == _clave
+        if st.button(
+            _etiqueta,
+            key=f"nav_{_clave}",
+            icon=_icono,
+            type="primary" if _es_activa else "secondary",
+            use_container_width=True,
+        ):
+            st.session_state.sigo_pagina = _clave
+            st.rerun()
+    st.markdown(
+        """
+        <div class="sigo-sidebar-footer">
+            <div class="sigo-avatar">SG</div>
+            <div class="sigo-sidebar-footer-texto">
+                <strong>Equipo Sugle</strong>
+                <span>Consultoría minero-ambiental</span>
+            </div>
         </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+        """,
+        unsafe_allow_html=True,
+    )
 
 st.markdown('<div class="sigo-firma">jlya</div>', unsafe_allow_html=True)
 
@@ -623,10 +707,11 @@ try:
 except Exception as e:
     _placeholder_carga.empty()
     st.error(
-        "⚠️ No se pudo conectar con la base de datos (Supabase no respondió a "
-        f"tiempo o hubo un error de conexión).\n\nDetalle tecnico: `{e}`"
+        "No se pudo conectar con la base de datos (Supabase no respondió a "
+        f"tiempo o hubo un error de conexión).\n\nDetalle tecnico: `{e}`",
+        icon=":material/warning:",
     )
-    if st.button("🔄 Reintentar"):
+    if st.button("Reintentar", icon=":material/refresh:"):
         st.cache_resource.clear()
         st.cache_data.clear()
         st.rerun()
@@ -634,19 +719,60 @@ except Exception as e:
 _placeholder_carga.empty()
 
 if datos is None:
-    st.error("⚠️ No se pudo cargar información desde Supabase (la tabla respondió vacía). "
-             "Verifica que la migración de datos se haya completado.")
+    st.error("No se pudo cargar información desde Supabase (la tabla respondió vacía). "
+             "Verifica que la migración de datos se haya completado.",
+             icon=":material/warning:")
     st.stop()
 
 df_all, col_obs = datos
 
-tab1, tab2, tab3, tab4 = st.tabs(["🔍 Búsqueda de Observaciones", "📋 Consulta General", "📊 Dashboard Completo & Métricas", "🧠 Evaluador IA"])
+# ---------------------------------------------------------
+# Barra superior del contenido: titulo/subtitulo de la pagina actual
+# + estadisticas en vivo, en reemplazo del hero morado + titulo
+# repetido en cada pestaña que habia antes.
+# ---------------------------------------------------------
+_TEXTOS_TOPBAR = {
+    "busqueda": (
+        "Búsqueda de Observaciones",
+        "Buscador temático y por significado (IA) sobre el historial de observaciones SENACE",
+    ),
+    "consulta": (
+        "Consulta General",
+        "Explorador completo de la matriz de observaciones históricas",
+    ),
+    "dashboard": (
+        "Dashboard & Métricas",
+        "Estadísticas, tendencias y patrones de exigencia técnica sobre toda la base",
+    ),
+    "evaluador": (
+        "Evaluador IA",
+        "Análisis automático de documentos ITS contra el criterio histórico de SENACE",
+    ),
+}
+COLUMNAS_POR_DEFECTO = [
+    "N", "Expediente", "Titulo Proyecto", "Unidad Proyecto", "Empresa",
+    "Informe", "Fecha", "Coordinador", "N Obs", "Fundamento", "Observacion",
+]
+
+_titulo_pagina, _subtitulo_pagina = _TEXTOS_TOPBAR[st.session_state.sigo_pagina]
+_total_expedientes_topbar = df_all['Expediente'].nunique() if 'Expediente' in df_all.columns else 0
+st.markdown(
+    f"""
+    <div class="sigo-topbar">
+        <div>
+            <div class="sigo-topbar-titulo">{_titulo_pagina}</div>
+            <div class="sigo-topbar-subtitulo">{_subtitulo_pagina}</div>
+        </div>
+        <div class="sigo-topbar-stats">{len(df_all):,} observaciones · {_total_expedientes_topbar:,} expedientes</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ---------------------------------------------------------
-# PESTAÑA 1: BÚSQUEDA HÍBRIDA (Supabase + IA)
+# PÁGINA: BÚSQUEDA HÍBRIDA (Supabase + IA)
 # ---------------------------------------------------------
-with tab1:
-    st.header("Búsqueda Avanzada de Observaciones (palabra clave + IA)")
+if st.session_state.sigo_pagina == "busqueda":
 
     # Opciones de los desplegables de especialidad/evaluador, sacadas
     # directamente de df_all (ya cargado desde Supabase mas arriba) --
@@ -665,6 +791,17 @@ with tab1:
         if 'Coordinador' in df_all.columns else []
     )
 
+    def _sigo_set_query(texto):
+        """Callback de los chips de accesos rapidos/busquedas recientes:
+        precarga el campo de busqueda y marca que hay que buscar de
+        una, sin esperar un segundo click en "Buscar Observaciones".
+        Tiene que ser un on_click (no escribir session_state despues
+        del formulario a secas) porque Streamlit no deja modificar el
+        valor de un widget con key ya instanciado en el mismo run --
+        el callback SI corre antes de que el widget se vuelva a crear."""
+        st.session_state["sigo_query"] = texto
+        st.session_state["sigo_auto_buscar"] = True
+
     # Envolver los campos en un st.form hace que presionar Enter en
     # cualquiera de ellos dispare la busqueda -- Streamlit lo hace
     # automaticamente para formularios, sin tener que programar nada
@@ -672,6 +809,7 @@ with tab1:
     with st.form("form_busqueda"):
         query = st.text_input(
             "Ingrese la consulta o temática a buscar:",
+            key="sigo_query",
             placeholder="Ej: bofedal impacto, calidad de aire, plan de participación ciudadana..."
         )
 
@@ -694,10 +832,57 @@ with tab1:
     especialidad_valor = None if especialidad_filtro == OPCION_TODAS_ESP else especialidad_filtro
     evaluador_valor = None if evaluador_filtro == OPCION_TODOS_EVAL else evaluador_filtro
 
+    if st.session_state.pop("sigo_auto_buscar", False):
+        buscar = True
+
+    # Accesos rapidos + busquedas recientes: solo se muestran ANTES de
+    # buscar -- en el mismo rerun en el que se despliegan resultados,
+    # este bloque se oculta (por eso "desaparece" al llegar la data).
+    if not buscar:
+        temas_sugeridos = cargar_temas_recurrentes()
+        if temas_sugeridos:
+            sugerencias = [t["tema"] for t in temas_sugeridos[:5]]
+        else:
+            sugerencias = [
+                "Bofedal impacto", "Calidad de aire", "Plan de participación ciudadana",
+                "Biodiversidad", "Cronograma de actividades",
+            ]
+        st.markdown('<div class="sigo-seccion-chips">Accesos rápidos</div>', unsafe_allow_html=True)
+        cols_chip = st.columns(len(sugerencias))
+        for _col_chip, _tema in zip(cols_chip, sugerencias):
+            with _col_chip:
+                st.button(
+                    _tema,
+                    key=f"sigo_chip_{_tema}",
+                    on_click=_sigo_set_query,
+                    args=(_tema.replace(" / ", " "),),
+                    use_container_width=True,
+                )
+
+        _recientes = st.session_state.get("sigo_recientes", [])
+        if _recientes:
+            st.markdown('<div class="sigo-seccion-chips">Búsquedas recientes</div>', unsafe_allow_html=True)
+            cols_rec = st.columns(len(_recientes))
+            for _col_rec, _q in zip(cols_rec, _recientes):
+                with _col_rec:
+                    st.button(
+                        _q,
+                        key=f"sigo_reciente_{_q}",
+                        icon=":material/history:",
+                        on_click=_sigo_set_query,
+                        args=(_q,),
+                        use_container_width=True,
+                    )
+
     if buscar:
         if not query.strip():
             st.warning("Por favor ingrese un texto de consulta.")
         else:
+            _recientes = st.session_state.get("sigo_recientes", [])
+            if query in _recientes:
+                _recientes.remove(query)
+            st.session_state["sigo_recientes"] = ([query] + _recientes)[:5]
+
             with st.spinner("Convirtiendo tu búsqueda en coordenadas de significado..."):
                 modelo = cargar_modelo_embeddings()
                 vector_consulta = list(modelo.embed([query]))[0].tolist()
@@ -722,15 +907,16 @@ with tab1:
                 except APIError as e:
                     if getattr(e, "code", None) == "57014":
                         st.error(
-                            "⏱️ La búsqueda tardó demasiado en la base de datos. Esto suele pasar "
+                            "La búsqueda tardó demasiado en la base de datos. Esto suele pasar "
                             "con palabras sueltas muy genéricas (ej. \"aire\", \"agua\"). Prueba con "
                             "una frase más específica, de 2 o más palabras "
-                            "(ej. \"calidad de aire\" en vez de \"aire\")."
+                            "(ej. \"calidad de aire\" en vez de \"aire\").",
+                            icon=":material/schedule:",
                         )
                     else:
-                        st.error(f"⚠️ Ocurrió un problema al consultar la base de datos: {e}")
+                        st.error(f"Ocurrió un problema al consultar la base de datos: {e}", icon=":material/warning:")
                 except Exception as e:
-                    st.error(f"⚠️ Ocurrió un problema inesperado al consultar la base de datos: {e}")
+                    st.error(f"Ocurrió un problema inesperado al consultar la base de datos: {e}", icon=":material/warning:")
 
             if filas is None:
                 pass  # ya se mostro el aviso de error arriba
@@ -804,20 +990,21 @@ with tab1:
                     score_semantico = fila.get("score_semantico")
                     score_combinado = fila.get("score_combinado")
 
-                    with st.expander(f"📌 Resultado #{i} | Expediente: {exp}" + (f" | Evaluador: {coordinador}" if coordinador else "")):
+                    titulo_resultado = f"Resultado #{i} | Expediente: {exp}" + (f" | Evaluador: {coordinador}" if coordinador else "")
+                    with st.expander(titulo_resultado, icon=":material/push_pin:"):
                         etiquetas = []
                         if especialidad:
-                            etiquetas.append(f"🏷️ {especialidad}")
+                            etiquetas.append(f":material/label: {especialidad}")
                         if coordinador:
-                            etiquetas.append(f"👤 {coordinador}")
+                            etiquetas.append(f":material/person: {coordinador}")
                         if item:
-                            etiquetas.append(f"📍 {item}")
+                            etiquetas.append(f":material/location_on: {item}")
                         if score_texto:
-                            etiquetas.append(f"🔤 relevancia texto: {score_texto:.3f}")
+                            etiquetas.append(f":material/text_fields: relevancia texto: {score_texto:.3f}")
                         if score_semantico is not None:
-                            etiquetas.append(f"🧠 relevancia semántica: {score_semantico:.3f}")
+                            etiquetas.append(f":material/psychology: relevancia semántica: {score_semantico:.3f}")
                         if score_combinado is not None:
-                            etiquetas.append(f"🎯 relevancia combinada: {score_combinado:.3f}")
+                            etiquetas.append(f":material/track_changes: relevancia combinada: {score_combinado:.3f}")
                         if etiquetas:
                             st.caption(" &nbsp;|&nbsp; ".join(etiquetas))
 
@@ -826,29 +1013,23 @@ with tab1:
                         st.markdown("---")
 
                         if fundamento:
-                            st.markdown(f"**⚖️ Fundamento:**\n\n{formatear_parrafos(fundamento)}")
+                            st.markdown(f"**:material/balance: Fundamento:**\n\n{formatear_parrafos(fundamento)}")
                             st.markdown("")
 
                         st.markdown(f"**Observación:**\n\n{formatear_parrafos(str(observacion))}")
 
                         if subsanacion:
                             st.markdown("")
-                            st.markdown(f"**✅ Cómo se subsanó:**\n\n{formatear_parrafos(subsanacion)}")
+                            st.markdown(f"**:material/check_circle: Cómo se subsanó:**\n\n{formatear_parrafos(subsanacion)}")
 
                         if informe:
                             ref = f" — página {pagina}" if pagina else ""
                             st.caption(f"Fuente: {informe}{ref}")
 
 # ---------------------------------------------------------
-# PESTAÑA 2: CONSULTA GENERAL
+# PÁGINA: CONSULTA GENERAL
 # ---------------------------------------------------------
-COLUMNAS_POR_DEFECTO = [
-    "N", "Expediente", "Titulo Proyecto", "Unidad Proyecto", "Empresa",
-    "Informe", "Fecha", "Coordinador", "N Obs", "Fundamento", "Observacion",
-]
-
-with tab2:
-    st.header("Explorador de la Base de Datos")
+elif st.session_state.sigo_pagina == "consulta":
     st.write(f"Total de registros: **{len(df_all):,}**")
 
     filtro_libre = st.text_input(
@@ -874,11 +1055,9 @@ with tab2:
     st.dataframe(df_mostrar, use_container_width=True, height=600, column_order=orden_columnas)
 
 # ---------------------------------------------------------
-# PESTAÑA 3: DASHBOARD COMPLETO & MÉTRICAS
+# PÁGINA: DASHBOARD COMPLETO & MÉTRICAS
 # ---------------------------------------------------------
-with tab3:
-    st.header("📊 Dashboard General de Estadísticas y Control")
-
+elif st.session_state.sigo_pagina == "dashboard":
     col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
 
     total_obs = len(df_all)
@@ -896,7 +1075,7 @@ with tab3:
     col_chart1, col_chart2 = st.columns(2)
 
     with col_chart1:
-        st.subheader("👥 Carga de Trabajo por Evaluador")
+        st.subheader(":material/groups: Carga de Trabajo por Evaluador")
         if 'Coordinador' in df_all.columns:
             df_eval = df_all[df_all['Coordinador'] != 'Sin Asignar']['Coordinador'].value_counts().reset_index()
             df_eval.columns = ['Evaluador', 'Cantidad']
@@ -915,7 +1094,7 @@ with tab3:
             st.plotly_chart(fig_eval, use_container_width=True)
 
     with col_chart2:
-        st.subheader("🏷️ Distribución por Especialidad / Tema")
+        st.subheader(":material/label: Distribución por Especialidad / Tema")
         col_tema = 'Especialidad Final' if 'Especialidad Final' in df_all.columns else None
         if col_tema:
             df_tema = df_all[col_tema].value_counts().reset_index()
@@ -934,7 +1113,7 @@ with tab3:
     col_chart3, col_chart4 = st.columns(2)
 
     with col_chart3:
-        st.subheader("🏢 Top 20 Empresas con más Observaciones")
+        st.subheader(":material/apartment: Top 20 Empresas con más Observaciones")
         if 'Empresa' in df_all.columns:
             df_emp = df_all[df_all['Empresa'] != 'Sin información']['Empresa'].value_counts().reset_index()
             df_emp.columns = ['Empresa', 'Cantidad']
@@ -952,7 +1131,7 @@ with tab3:
             st.plotly_chart(fig_emp, use_container_width=True)
 
     with col_chart4:
-        st.subheader("📂 Top Expedientes con Mayor Número de Hallazgos")
+        st.subheader(":material/folder_open: Top Expedientes con Mayor Número de Hallazgos")
         if 'Expediente' in df_all.columns:
             df_exp = df_all[df_all['Expediente'] != 'Sin información']['Expediente'].value_counts().reset_index()
             df_exp.columns = ['Expediente', 'Cantidad']
@@ -1022,7 +1201,7 @@ with tab3:
             st.plotly_chart(fig_exp, use_container_width=True)
 
     st.markdown("---")
-    st.subheader("🧭 Vistas adicionales")
+    st.subheader(":material/explore: Vistas adicionales")
 
     col_chart5, col_chart6 = st.columns(2)
 
@@ -1174,8 +1353,7 @@ with tab3:
             else:
                 st.caption("No se pudieron interpretar las fechas de esta columna.")
 
-with tab4:
-    st.header("🧠 Evaluador IA de Documentos ITS")
+elif st.session_state.sigo_pagina == "evaluador":
     st.caption(
         "Próximamente: sube tu documento y SIGO lo revisará con el mismo criterio "
         "que aprendió de miles de observaciones reales de SENACE."
@@ -1242,6 +1420,7 @@ with tab4:
     """, unsafe_allow_html=True)
 
     st.info(
-        "🚧 La carga de documentos y el análisis automático todavía no están activos en esta "
-        "pestaña. Esta vista explica el proceso completo que los sustentará."
+        "La carga de documentos y el análisis automático todavía no están activos en esta "
+        "pestaña. Esta vista explica el proceso completo que los sustentará.",
+        icon=":material/construction:",
     )
