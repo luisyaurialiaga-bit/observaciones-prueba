@@ -132,22 +132,95 @@ st.markdown(
         [data-testid="stSidebar"] {
             background-color: #3F1840; /* Morado Vino */
         }
+        /* padding-top chico + flex column de alto completo: asi el
+        bloque de marca queda pegado arriba y el pie (.sigo-sidebar-footer,
+        ver mas abajo) se puede empujar al fondo con margin-top:auto. */
         [data-testid="stSidebar"] > div {
-            padding-top: 1.4rem;
+            padding-top: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        /* stSidebarHeader (la fila con la flechita de colapsar, arriba
+        del todo) trae 60px de alto reservados por Streamlit aunque su
+        contenido real (la flechita) ocupa bastante menos -- eso era lo
+        que empujaba el grupo 1 (logo + SIGO) mas abajo de lo pedido. */
+        [data-testid="stSidebarHeader"] {
+            height: 34px !important;
+            min-height: 34px !important;
+            margin-bottom: 0 !important;
+        }
+        /* Cadena de flex completa hasta el pie: Streamlit mete AL MENOS
+        un contenedor intermedio (stSidebarUserContent, y en algunas
+        versiones tambien stVerticalBlockBorderWrapper) entre el div de
+        arriba y el stVerticalBlock donde vive nuestro contenido. Si
+        alguno de esos eslabones no es "display:flex" con "flex:1", el
+        flex:1 de los que estan mas abajo no sirve de nada (un hijo no
+        crece con flex:1 si su padre no es un contenedor flex) -- por
+        eso el pie se quedaba pegado abajo del menu en vez de ir al
+        fondo real del sidebar. Se marcan TODOS los eslabones posibles;
+        el selector que no exista en esta version de Streamlit
+        simplemente no matchea nada, sin romper nada. */
+        [data-testid="stSidebarUserContent"],
+        [data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"],
+        [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            padding-top: 0 !important;
+        }
+        /* stSidebarUserContent trae ademas 96px de padding-bottom por
+        defecto de Streamlit (confirmado inspeccionando el computed
+        style) -- era la causa real de que quedara un hueco grande
+        entre el pie y el borde inferior real del sidebar, a pesar de
+        que toda la cadena de flex ya estaba bien armada. */
+        [data-testid="stSidebarUserContent"] {
+            padding-bottom: 20px !important;
+        }
+        /* Este es el eslabon que faltaba (confirmado inspeccionando el
+        HTML real que arma Streamlit): stSidebarUserContent envuelve
+        stVerticalBlock en un div propio SIN data-testid, asi que ningun
+        selector basado en testid lo alcanzaba -- se lo targetea por
+        posicion (hijo directo de stSidebarUserContent). Sin este paso,
+        el flex:1 de los eslabones de arriba y de abajo no servia de
+        nada, porque un hijo no crece con flex:1 si el div que esta
+        justo en el medio no es el tambien un contenedor flex. */
+        [data-testid="stSidebarUserContent"] > div {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
         }
         [data-testid="stSidebar"] p,
         [data-testid="stSidebar"] span,
         [data-testid="stSidebar"] label {
             color: #E5DBEB;
         }
+        /* Espacio extra ENTRE los 4 botones de navegacion (ademas del
+        gap que ya trae Streamlit por defecto entre elementos). */
+        [data-testid="stSidebar"] .stButton {
+            margin-bottom: 10px;
+        }
         [data-testid="stSidebar"] .stButton > button {
             width: 100%;
             text-align: left;
             justify-content: flex-start;
             border-radius: 8px;
-            padding: 10px 14px;
+            padding: 13px 16px;
             font-weight: 500;
-            font-size: 0.92rem;
+            font-size: 1.05rem;
+        }
+        /* Streamlit envuelve el icono + la etiqueta de cada boton en un
+        div propio adentro del <button>, que por defecto centra su
+        contenido (justify-content: center) sin importar el
+        justify-content que le pongamos al <button> de afuera -- por eso
+        el texto se veia centrado en vez de en fila pegado a la
+        izquierda. Se fuerza aca, en ese div interno directo. */
+        [data-testid="stSidebar"] .stButton > button > div {
+            justify-content: flex-start !important;
+            width: 100%;
         }
         /* Item de navegacion INACTIVO: transparente sobre el fondo
         morado del sidebar. */
@@ -176,34 +249,53 @@ st.markdown(
         .sigo-sidebar-brand {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             padding: 0 12px 20px 12px;
-            margin-bottom: 6px;
+            margin-bottom: 48px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.12);
         }
         .sigo-sidebar-brand img {
-            height: 32px;
+            height: 42px;
         }
         .sigo-sidebar-brand .sigo-sidebar-titulo {
             font-weight: 700;
-            font-size: 1.1rem;
+            font-size: 1.35rem;
             color: #FFFFFF;
             line-height: 1.15;
         }
         .sigo-sidebar-brand .sigo-sidebar-subtitulo {
-            font-size: 0.68rem;
+            font-size: 0.76rem;
             color: #C6AFCB;
             line-height: 1.25;
-            margin-top: 2px;
+            margin-top: 3px;
         }
 
+        /* Pie del sidebar: se ancla al fondo via margin-top:auto en el
+        contenedor directo que Streamlit genera para este st.markdown
+        (localizado con :has(), sin importar cuantos divs intermedios
+        agregue Streamlit) -- el .stVerticalBlock de arriba es el que le
+        da el alto completo para que "auto" tenga margen de sobra donde
+        empujar. Tamaño de texto SIN cambios a proposito (se pidio dejar
+        este bloque como estaba, mientras el resto del sidebar crecia). */
+        [data-testid="stSidebar"] [data-testid="stVerticalBlock"] > *:has(.sigo-sidebar-footer) {
+            margin-top: auto;
+        }
         .sigo-sidebar-footer {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 18px 12px 6px 12px;
-            margin-top: 18px;
+            padding: 18px 12px 14px 12px;
             border-top: 1px solid rgba(255, 255, 255, 0.12);
+            /* Refuerzo ademas del margin-top:auto de arriba: sticky lo
+            deja pegado al borde inferior real del sidebar aunque el
+            margin-top:auto no llegue exacto al fondo (por ejemplo si
+            queda algun padding heredado de Streamlit debajo). Necesita
+            su propio fondo solido porque, al ser sticky, en algun
+            momento del scroll queda "flotando" sobre el resto del
+            contenido en vez de en su lugar normal en el flujo. */
+            position: sticky;
+            bottom: 0;
+            background-color: #3F1840; /* Morado Vino, igual al sidebar */
         }
         .sigo-sidebar-footer .sigo-avatar {
             width: 32px;
