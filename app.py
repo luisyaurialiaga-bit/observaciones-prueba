@@ -58,6 +58,21 @@ st.set_page_config(page_title="Sistema ITS SENACE", page_icon=":material/shield:
 st.markdown(
     """
     <style>
+        /* Bloquea el scroll de la PAGINA/ventana completa (html/body) --
+        Streamlit ya arma el layout para que solo el panel de contenido
+        ([data-testid="stMain"]) tenga su propio scroll interno, con el
+        sidebar como un panel aparte de alto fijo (100vh). Pero en
+        algunas ventanas/tamaños de pantalla, si el documento llega a
+        medir mas alto que el viewport (por cualquier motivo), el
+        NAVEGADOR agrega su propio scroll de pagina como respaldo -- y
+        ESE si mueve todo junto, sidebar incluido (el bug reportado: la
+        barra lateral "se iba" al hacer scroll en una tabla larga). Con
+        esto, ese scroll de respaldo del navegador queda desactivado
+        del todo, y solo puede scrollear el panel de contenido interno,
+        como ya se veia en las pestañas cortas. */
+        html, body {
+            overflow: hidden !important;
+        }
         .block-container {
             padding-top: 1.5rem;
         }
@@ -352,6 +367,177 @@ st.markdown(
             text-align: right;
         }
 
+        /* Ticker de datos de IA (21-ago-2026): franja delgada -- mismo
+        tamaño de letra que "Consultoría minero-ambiental" del pie del
+        sidebar (0.72rem) -- pegada abajo del panel PRINCIPAL, SIEMPRE
+        visible (no se va con el scroll ni desaparece en pestañas
+        cortas). Se probaron primero position:sticky (se quedaba
+        flotando en pestañas cortas, sin llegar al fondo real de la
+        ventana) y position:fixed anclado a stMain via transform (no
+        funciono: stMain es a la vez el que hace scroll Y el que
+        ancla, asi que el ticker se iba con el resto del contenido al
+        scrollear el Dashboard).
+
+        Solucion: el ticker va fixed a TODA la ventana (left:0, ancho
+        completo) pero en una capa (z-index) MAS BAJA que el sidebar
+        -- como el sidebar tiene fondo solido opaco y llega hasta el
+        borde inferior real (ver .sigo-sidebar-footer, mas arriba), lo
+        tapa por completo en esa franja, sin tener que calcular a mano
+        el ancho del sidebar (que ademas el usuario puede arrastrar
+        para hacerlo mas angosto/ancho). El resultado visual es
+        identico a si el ticker arrancara justo despues del sidebar. */
+        /* SOLO z-index, sin tocar "position" -- Streamlit ya le pone su
+        propio position (fixed) al sidebar para que se quede quieto
+        mientras el panel principal hace scroll; pisarlo con
+        "position: relative" (como se hizo en un intento anterior) lo
+        volvia parte del flujo normal de la pagina y se iba de la
+        pantalla al scrollear una tabla larga -- justo el bug reportado. */
+        [data-testid="stSidebar"] {
+            z-index: 10;
+        }
+        .sigo-ticker-wrap {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 30px;
+            overflow: hidden;
+            background-color: #FFFFFF;
+            border-top: 1px solid #E1D6E8;
+            z-index: 5;
+        }
+        /* Para que el ticker (fixed) no tape la ultima fila de
+        contenido de cada pestaña. */
+        .block-container {
+            padding-bottom: 2.5rem;
+        }
+        .sigo-ticker-track {
+            display: inline-flex;
+            align-items: center;
+            height: 30px;
+            white-space: nowrap;
+            animation: sigo-ticker-desplazar 75s linear infinite;
+        }
+        .sigo-ticker-track .sigo-ticker-copia {
+            padding-right: 3rem;
+        }
+        .sigo-ticker-item {
+            font-size: 0.72rem;
+            color: #6B5E71;
+        }
+        .sigo-ticker-item b {
+            color: #A02671; /* Morado Barney */
+        }
+        .sigo-ticker-sep {
+            margin: 0 1.4rem;
+            color: #D9CCE3;
+        }
+        @keyframes sigo-ticker-desplazar {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+        }
+        /* Quieta para quien prefiera menos movimiento en pantalla. */
+        @media (prefers-reduced-motion: reduce) {
+            .sigo-ticker-track {
+                animation: none;
+            }
+        }
+
+        /* ------------------------------------------------------
+        Ajustes responsivos para celular (21-ago-2026). Mismo diseño
+        y estructura que en escritorio -- esto solo corrige lo que se
+        corta/aprieta en una pantalla angosta. Streamlit ya colapsa el
+        sidebar solo (boton "»") por debajo de este ancho, eso no hay
+        que tocarlo.
+        ------------------------------------------------------ */
+        @media (max-width: 768px) {
+            /* El ticker de datos de IA es decorativo -- en una pantalla
+            chica ocupa demasiado espacio util, mejor ocultarlo del
+            todo que achicarlo hasta ilegible. */
+            .sigo-ticker-wrap {
+                display: none;
+            }
+            /* Ya no hace falta el espacio extra abajo reservado para
+            el ticker (ver mas arriba, .block-container padding-bottom
+            2.5rem) si el ticker esta oculto. */
+            .block-container {
+                padding-bottom: 1rem;
+            }
+            /* Titulo/subtitulo a la izquierda + estadisticas a la
+            derecha no entran uno al lado del otro en una pantalla
+            angosta (las stats se cortaban) -- se apilan en columna. */
+            .sigo-topbar {
+                flex-direction: column;
+            }
+            .sigo-topbar-stats {
+                text-align: left;
+                white-space: normal;
+            }
+            /* Objetivos tactiles mas grandes (dedo en vez de mouse) en
+            botones, inputs y desplegables. */
+            .stButton > button,
+            [data-testid="stForm"] button {
+                padding-top: 12px;
+                padding-bottom: 12px;
+            }
+            [data-testid="stTextInput"] input,
+            [data-testid="stSelectbox"] > div > div {
+                min-height: 44px;
+            }
+        }
+
+        /* Barra de navegacion horizontal para celular (ver ES_MOVIL en
+        el codigo Python -- st.container(key="sigo_mobile_nav")).
+        Streamlit le agrega la clase "st-key-<key>" al contenedor solo
+        por el "key" que se le paso, sin tener que adivinar ningun
+        testid. Reusa la paleta morada del sidebar de escritorio para
+        que se sienta la misma marca. */
+        .st-key-sigo_mobile_nav {
+            background-color: #3F1840;
+            border-radius: 10px;
+            padding: 0.5rem 0.4rem;
+            margin-bottom: 1.2rem;
+        }
+        /* Streamlit apila st.columns en columna por debajo de cierto
+        ancho (pensado para el contenido normal de la pagina) -- para
+        ESTA barra puntual se fuerza que los 4 botones sigan siempre
+        en una sola fila, aunque el telefono sea angosto (para eso son
+        etiquetas cortas: "Buscar", "Consulta", etc.). min-width:0 es
+        necesario para que cada columna se achique de verdad en vez de
+        desbordar. */
+        .st-key-sigo_mobile_nav [data-testid="stHorizontalBlock"] {
+            flex-direction: row !important;
+            flex-wrap: nowrap;
+            gap: 0.3rem;
+        }
+        .st-key-sigo_mobile_nav [data-testid="stColumn"] {
+            min-width: 0;
+            flex: 1 1 0;
+            width: auto !important;
+        }
+        .st-key-sigo_mobile_nav [data-testid="stIconMaterial"] {
+            display: block;
+            margin: 0 auto 2px auto;
+        }
+        .st-key-sigo_mobile_nav .stButton > button {
+            flex-direction: column;
+            gap: 2px;
+            font-size: 0.68rem;
+            padding: 8px 2px;
+            border-radius: 8px;
+        }
+        .st-key-sigo_mobile_nav button[kind="secondary"] {
+            background-color: transparent;
+            border: none;
+            color: #D9CCE3;
+        }
+        .st-key-sigo_mobile_nav button[kind="primary"] {
+            background-color: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: #FFFFFF;
+        }
+
         /* Tarjeta blanca del formulario de busqueda -- st.form ya trae
         su propio contenedor (stForm), asi que solo hay que vestirlo. */
         [data-testid="stForm"] {
@@ -360,6 +546,15 @@ st.markdown(
             padding: 1.6rem 1.8rem;
             border: 1px solid #E9E1EE;
             box-shadow: 0 1px 3px rgba(63, 24, 64, 0.06);
+        }
+
+        /* Fondo de los campos de texto (ej. el filtro de "Consulta
+        General"): el gris por defecto de Streamlit casi no se notaba
+        sobre el fondo lila clarito de la app (#F4F1F7, ver .stApp mas
+        arriba) -- blanco solido para que contraste. */
+        [data-testid="stTextInput"] input {
+            background-color: #FFFFFF;
+            border: 1px solid #D9CCE3;
         }
 
         /* Encabezado chico de las secciones de "accesos rapidos" y
@@ -530,6 +725,45 @@ def normalizar_nombres(serie):
 
     forma_canonica = serie.groupby(claves).agg(elegir_forma)
     return claves.map(forma_canonica)
+
+
+# Ticker de datos de IA (franja inferior del panel principal, ver
+# .sigo-ticker-wrap en el CSS). Solo datos de fuentes verificables
+# (Deloitte, McKinsey, MIT NANDA) -- se dejaron fuera a proposito otras
+# cifras "llamativas" encontradas en sitios agregadores/SEO (ej. "92%
+# de Fortune 500 usa OpenAI") por no venir de una fuente primaria
+# confirmable, para no arriesgar credibilidad frente a un cliente real.
+DATOS_IA_TICKER = [
+    ("Deloitte", "el 60% de los trabajadores ya tiene acceso a herramientas de IA aprobadas por su empresa, frente a menos del 40% el año anterior"),
+    ("Deloitte", "solo 1 de cada 4 organizaciones ha logrado llevar a producción al menos el 40% de sus iniciativas de IA"),
+    ("McKinsey", "el 88% de las organizaciones ya usa IA en al menos una función del negocio"),
+    ("McKinsey", "el uso de IA generativa en las empresas pasó de 33% en 2024 a 72% en 2026"),
+    ("McKinsey", "por cada dólar invertido en tecnología de IA, se recomienda invertir 5 dólares en las personas"),
+    ("MIT NANDA", "solo el 5% de las organizaciones logra traducir sus pilotos de IA en impacto financiero real"),
+    ("Deloitte España", "el 85% de las empresas españolas prevé aumentar su inversión en IA en el próximo año fiscal"),
+]
+
+
+def _render_ticker_ia():
+    """Franja inferior del panel principal con datos reales sobre
+    adopcion de IA en empresas grandes, en scroll horizontal continuo
+    (CSS puro, sin JS) -- se llama una sola vez al final del script,
+    fuera del if/elif de paginas, para que aparezca en las 4 pestañas."""
+    item_html = "".join(
+        f'<span class="sigo-ticker-item"><b>{fuente}:</b> {dato}</span><span class="sigo-ticker-sep">•</span>'
+        for fuente, dato in DATOS_IA_TICKER
+    )
+    st.markdown(
+        f"""
+        <div class="sigo-ticker-wrap">
+            <div class="sigo-ticker-track">
+                <span class="sigo-ticker-copia">{item_html}</span>
+                <span class="sigo-ticker-copia">{item_html}</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 MESES_ES = {
@@ -726,61 +960,102 @@ _logo_html = (
     if _logo_b64 else ""
 )
 
+
 # ---------------------------------------------------------
-# Sidebar de navegacion (21-ago-2026, reemplaza las pestañas de
-# arriba por un menu lateral tipo SaaS -- ver mockup de referencia).
-# La pagina activa se guarda en session_state para sobrevivir los
-# reruns que dispara Streamlit en cada interaccion.
+# Deteccion de celular (21-ago-2026) -- via el header HTTP User-Agent
+# real del navegador (st.context, disponible desde Streamlit 1.37),
+# NO por ancho de ventana. A proposito: la tabla de Consulta General
+# es un grid tipo canvas (glide-data-grid) -- no se le pueden ocultar
+# columnas con CSS, hace falta decidir en Python (via column_order)
+# que columnas mandarle, y eso solo se puede hacer sabiendo de
+# antemano si es un telefono real o una ventana de escritorio angosta.
 # ---------------------------------------------------------
-# Iconos Material Symbols (nativos de Streamlit, sin depender de un
-# CDN externo) en vez de emojis, para un look mas profesional.
+def _detectar_movil():
+    try:
+        ua = (st.context.headers.get("User-Agent") or "").lower()
+    except Exception:
+        return False
+    return any(clave in ua for clave in ("mobile", "android", "iphone"))
+
+
+ES_MOVIL = _detectar_movil()
+
+# ---------------------------------------------------------
+# Navegacion (21-ago-2026): sidebar tipo SaaS en escritorio, barra
+# horizontal arriba del contenido en celular (ver ES_MOVIL). La pagina
+# activa se guarda en session_state para sobrevivir los reruns que
+# dispara Streamlit en cada interaccion. Iconos Material Symbols
+# (nativos de Streamlit, sin depender de un CDN externo).
+# etiqueta_corta se usa solo en la barra de celular (4 botones en una
+# fila angosta no entran con el nombre completo de escritorio).
 PAGINAS_SIGO = [
-    ("busqueda", ":material/search:", "Búsqueda de Observaciones"),
-    ("consulta", ":material/table_view:", "Consulta General"),
-    ("dashboard", ":material/bar_chart:", "Dashboard & Métricas"),
-    ("evaluador", ":material/psychology:", "Evaluador IA"),
+    ("busqueda", ":material/search:", "Búsqueda de Observaciones", "Buscar"),
+    ("consulta", ":material/table_view:", "Consulta General", "Consulta"),
+    ("dashboard", ":material/bar_chart:", "Dashboard & Métricas", "Panel"),
+    ("evaluador", ":material/psychology:", "Evaluador IA", "Evaluar"),
 ]
 if "sigo_pagina" not in st.session_state:
     st.session_state.sigo_pagina = "busqueda"
 
-with st.sidebar:
-    st.markdown(
-        f"""
-        <div class="sigo-sidebar-brand">
-            {_logo_html}
-            <div>
-                <div class="sigo-sidebar-titulo">SIGO</div>
-                <div class="sigo-sidebar-subtitulo">Sistema de Inteligencia y<br>Gestión de Observaciones</div>
+if ES_MOVIL:
+    # Barra horizontal de navegacion, arriba del todo del panel
+    # principal -- reemplaza el sidebar (que en celular quedaria
+    # escondido detras de un boton, una interaccion de mas que no
+    # aporta en una demo rapida desde el telefono).
+    with st.container(key="sigo_mobile_nav"):
+        _cols_nav = st.columns(len(PAGINAS_SIGO))
+        for _col, (_clave, _icono, _etiqueta, _etiqueta_corta) in zip(_cols_nav, PAGINAS_SIGO):
+            with _col:
+                _es_activa = st.session_state.sigo_pagina == _clave
+                if st.button(
+                    _etiqueta_corta,
+                    key=f"nav_m_{_clave}",
+                    icon=_icono,
+                    type="primary" if _es_activa else "secondary",
+                    use_container_width=True,
+                ):
+                    st.session_state.sigo_pagina = _clave
+                    st.rerun()
+else:
+    with st.sidebar:
+        st.markdown(
+            f"""
+            <div class="sigo-sidebar-brand">
+                {_logo_html}
+                <div>
+                    <div class="sigo-sidebar-titulo">SIGO</div>
+                    <div class="sigo-sidebar-subtitulo">Sistema de Inteligencia y<br>Gestión de Observaciones</div>
+                </div>
             </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    for _clave, _icono, _etiqueta in PAGINAS_SIGO:
-        _es_activa = st.session_state.sigo_pagina == _clave
-        if st.button(
-            _etiqueta,
-            key=f"nav_{_clave}",
-            icon=_icono,
-            type="primary" if _es_activa else "secondary",
-            use_container_width=True,
-        ):
-            st.session_state.sigo_pagina = _clave
-            st.rerun()
-    st.markdown(
-        """
-        <div class="sigo-sidebar-footer">
-            <div class="sigo-avatar">SG</div>
-            <div class="sigo-sidebar-footer-texto">
-                <strong>Equipo Sugle</strong>
-                <span>Consultoría minero-ambiental</span>
+            """,
+            unsafe_allow_html=True,
+        )
+        for _clave, _icono, _etiqueta, _etiqueta_corta in PAGINAS_SIGO:
+            _es_activa = st.session_state.sigo_pagina == _clave
+            if st.button(
+                _etiqueta,
+                key=f"nav_{_clave}",
+                icon=_icono,
+                type="primary" if _es_activa else "secondary",
+                use_container_width=True,
+            ):
+                st.session_state.sigo_pagina = _clave
+                st.rerun()
+        st.markdown(
+            """
+            <div class="sigo-sidebar-footer">
+                <div class="sigo-avatar">SG</div>
+                <div class="sigo-sidebar-footer-texto">
+                    <strong>Equipo Sugle</strong>
+                    <span>Consultoría minero-ambiental</span>
+                </div>
             </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            """,
+            unsafe_allow_html=True,
+        )
 
-st.markdown('<div class="sigo-firma">jlya</div>', unsafe_allow_html=True)
+if not ES_MOVIL:
+    st.markdown('<div class="sigo-firma">jlya</div>', unsafe_allow_html=True)
 
 _placeholder_carga = st.empty()
 _placeholder_carga.markdown(
@@ -841,9 +1116,16 @@ _TEXTOS_TOPBAR = {
         "Análisis automático de documentos ITS contra el criterio histórico de SENACE",
     ),
 }
+# Orden pensado para quien revisa la base completa: primero el
+# contenido del hallazgo (fundamento, observacion), despues la
+# categoria/tema, y recien despues los metadatos de ubicacion
+# (expediente, empresa, etc.) de mayor a menor relevancia. Subsanacion
+# se dejo FUERA de la vista por defecto (queda disponible con el icono
+# de "ojo" de la tabla) porque esta vacia/incompleta en muchas filas.
 COLUMNAS_POR_DEFECTO = [
-    "N", "Expediente", "Titulo Proyecto", "Unidad Proyecto", "Empresa",
-    "Informe", "Fecha", "Coordinador", "N Obs", "Fundamento", "Observacion",
+    "N", "Fundamento", "Observacion",
+    "Expediente", "Empresa", "Coordinador", "Titulo Proyecto", "Fecha",
+    "Informe", "Unidad Proyecto",
 ]
 
 _titulo_pagina, _subtitulo_pagina = _TEXTOS_TOPBAR[st.session_state.sigo_pagina]
@@ -1143,8 +1425,46 @@ elif st.session_state.sigo_pagina == "consulta":
     # el resto no desaparecen, se pueden volver a prender con el icono
     # de "ojo" que ya trae la tabla en su barra de herramientas (arriba
     # a la derecha).
-    orden_columnas = [c for c in COLUMNAS_POR_DEFECTO if c in df_mostrar.columns]
-    st.dataframe(df_mostrar, use_container_width=True, height=600, column_order=orden_columnas)
+    if ES_MOVIL:
+        # En celular, una tabla ancha con muchas columnas obliga a
+        # scrollear horizontal con el dedo, incomodo -- se manda solo
+        # la columna con el contenido real (esto SI hay que decidirlo
+        # en Python: la tabla es un grid tipo canvas, no se le pueden
+        # ocultar columnas con CSS como al resto de la pagina).
+        orden_columnas = [c for c in ["Observacion"] if c in df_mostrar.columns]
+    else:
+        orden_columnas = [c for c in COLUMNAS_POR_DEFECTO if c in df_mostrar.columns]
+    # Alto fijo pensado para que el titulo + filtro + tabla completa
+    # entren en una pantalla normal SIN que aparezca la barra de
+    # desplazamiento del panel principal (la tabla igual tiene SU
+    # PROPIO scroll interno para recorrer las 20 mil filas, eso es
+    # aparte y no se puede quitar). 35px por fila + 38px de encabezado,
+    # ajustado a mano para que se vean ~13 filas completas.
+    FILAS_VISIBLES_TABLA = 13
+    ALTO_TABLA = 38 + FILAS_VISIBLES_TABLA * 35
+    _config_columnas = {"Especialidad Final": st.column_config.Column(label="Especialidad")}
+    if ES_MOVIL:
+        # Sin esto, "Observacion" (unica columna visible en celular)
+        # se queda con su ancho angosto de siempre y el texto se corta
+        # -- hay que pedirle explicitamente que ocupe todo el ancho.
+        _config_columnas["Observacion"] = st.column_config.Column(width="large")
+    st.dataframe(
+        df_mostrar,
+        use_container_width=True,
+        height=ALTO_TABLA,
+        column_order=orden_columnas,
+        # El indice numerico de pandas (la columna sin titulo, a la
+        # izquierda del todo) no sirve de nada aca -- la columna "N"
+        # real de la base ya cumple ese rol y va primera en el orden
+        # de arriba, asi que el indice se apaga del todo.
+        hide_index=True,
+        # Solo cambia la ETIQUETA visible de la columna -- el nombre
+        # real ("Especialidad Final") no se toca, porque el Dashboard
+        # y el filtro de Busqueda siguen usandolo tal cual. Se deja
+        # configurado por si el usuario la vuelve a prender con el
+        # icono de "ojo" (esta fuera de COLUMNAS_POR_DEFECTO).
+        column_config=_config_columnas,
+    )
 
 # ---------------------------------------------------------
 # PÁGINA: DASHBOARD COMPLETO & MÉTRICAS
@@ -1516,3 +1836,13 @@ elif st.session_state.sigo_pagina == "evaluador":
         "pestaña. Esta vista explica el proceso completo que los sustentará.",
         icon=":material/construction:",
     )
+
+# ---------------------------------------------------------
+# Ticker de datos de IA -- fuera del if/elif de arriba a proposito,
+# para que se renderice al final de CUALQUIER pagina (siempre es lo
+# ultimo que se dibuja, pegado abajo del panel principal). Se salta
+# del todo en celular (ES_MOVIL): es decorativo, y en una pantalla
+# chica quita espacio util que en escritorio sobra.
+# ---------------------------------------------------------
+if not ES_MOVIL:
+    _render_ticker_ia()
