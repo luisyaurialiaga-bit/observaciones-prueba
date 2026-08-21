@@ -6,3 +6,12 @@
 # CSS (button[title="Download as CSV"]) nunca funciono de verdad
 # porque ese texto no es un atributo "title" real del boton.
 disableDataExport = true
+
+# Oculta el icono de GitHub / lapiz de editar del toolbar de arriba a
+# la derecha -- "viewer" fuerza SIEMPRE la barra de "espectador" (sin
+# esos botones de desarrollador), incluso para quien esta logueado
+# como dueño del repo en GitHub/Streamlit Cloud (que si no, ve el
+# toolbar completo en su propia sesion, tanto en escritorio como en
+# celular). El boton "Deploy"/"Manage app" sigue viendose solo desde
+# Streamlit Cloud (share.streamlit.io), no desde la app en si.
+toolbarMode = "viewer"
