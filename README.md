@@ -19,3 +19,5 @@ Antes de desplegar, configurar como secretos del entorno:
 
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
+- `HF_TOKEN` (Hugging Face, gratis) — genera el vector de cada búsqueda
+- `GEMINI_API_KEY` (Google AI Studio, gratis) — chat de la pestaña Evaluador IA

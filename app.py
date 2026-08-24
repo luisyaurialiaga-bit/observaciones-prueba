@@ -22,6 +22,7 @@ Antes de desplegar (Streamlit Community Cloud):
         SUPABASE_URL = "https://jtujaaqnxvzipgdmkirr.supabase.co"
         SUPABASE_ANON_KEY = "el JWT que empieza con eyJhbGci..."
         HF_TOKEN = "el token de Hugging Face que empieza con hf_..."
+        GEMINI_API_KEY = "la key de Google AI Studio para el chat de Evaluador IA"
 
     HF_TOKEN (24-ago-2026): token de solo lectura de huggingface.co
     (Settings > Access Tokens, tipo "Read", gratis, sin tarjeta). Se usa
@@ -33,6 +34,14 @@ Antes de desplegar (Streamlit Community Cloud):
     configurado, la app sigue funcionando pero vuelve a cargar el
     modelo local (mas lento y pesado) -- ver generar_embedding().
 
+    GEMINI_API_KEY (24-ago-2026): key gratis de aistudio.google.com/apikey
+    (sin tarjeta). Habilita el chat de la pestaña "Evaluador IA", que usa
+    Gemini con function calling para consultar en vivo la base de
+    observaciones (ver conectar_gemini() y las herramientas
+    consultar_estadisticas_observaciones()/buscar_observaciones_relacionadas()).
+    Si no esta configurado, esa pestaña sigue mostrando el resto del
+    contenido pero el chat avisa que no esta disponible.
+
     Archivos que deben ir junto a este app.py en el repo:
         - logo-sugle.png
         - logo-sugle-claro.png (version del logo con texto en Lila,
@@ -42,7 +51,7 @@ Antes de desplegar (Streamlit Community Cloud):
         - temas_recurrentes.json (opcional -- si no esta, el Dashboard
           muestra un aviso en vez de fallar)
         - requirements.txt debe incluir: streamlit, supabase,
-          fastembed, pandas, openpyxl, plotly, pyarrow
+          fastembed, pandas, openpyxl, plotly, pyarrow, google-genai
 
 Uso local:
     streamlit run app.py
@@ -58,6 +67,8 @@ import unicodedata
 import urllib.request
 from supabase import create_client, ClientOptions
 from postgrest.exceptions import APIError
+from google import genai
+from google.genai import types as genai_types
 
 # ---------------------------------------------------------
 # Configuracion general
@@ -122,6 +133,15 @@ st.markdown(
         que se vea el mismo fondo de la app, sin una franja blanca arriba. */
         header[data-testid="stHeader"] {
             background-color: transparent;
+        }
+
+        /* Todos los iconos Material (:material/xxx: en botones, headers,
+        captions, etc.) 20% mas grandes que el tamaño por defecto de
+        Streamlit (24-ago-2026, pedido explicito) -- em relativo al tamaño
+        heredado en cada contexto, no un px fijo, para que escale bien en
+        cualquier lugar donde aparezca un icono. */
+        [data-testid="stIconMaterial"] {
+            font-size: 1.2em !important;
         }
 
         /* Botones primarios (ej. "Buscar Observaciones"). El selector
@@ -362,7 +382,7 @@ st.markdown(
             border-bottom: 1px solid #E1D6E8;
         }
         .sigo-topbar-titulo {
-            font-size: 1.5rem;
+            font-size: 1.75rem;
             font-weight: 700;
             color: #221527;
             line-height: 1.25;
@@ -420,6 +440,24 @@ st.markdown(
             border-top: 1px solid #E1D6E8;
             z-index: 5;
         }
+        /* En la pestaña "Conversa con SIGO" hay ademas un st.chat_input
+        fijo al fondo de la pantalla (widget nativo de Streamlit) -- sin
+        este ajuste, el ticker (tambien fijo al fondo) queda tapado por
+        ese cuadro. Se sube el ticker lo suficiente para que ambos se
+        vean, uno encima del otro. */
+        .sigo-ticker-wrap.sigo-ticker-sobre-chat {
+            bottom: 68px;
+        }
+        /* Cuadro de "Pregúntale algo a SIGO..." (pestaña Conversa con
+        SIGO): resaltado con el morado de marca en vez del gris por
+        defecto de Streamlit, para que se note que es EL cuadro
+        principal de la pagina. */
+        [data-testid="stChatInput"] {
+            border: 2px solid #A02671;
+            border-radius: 14px;
+            background-color: #FFFFFF;
+            box-shadow: 0 2px 8px rgba(63, 24, 64, 0.12);
+        }
         /* Para que el ticker (fixed) no tape la ultima fila de
         contenido de cada pestaña. */
         .block-container {
@@ -430,7 +468,7 @@ st.markdown(
             align-items: center;
             height: 30px;
             white-space: nowrap;
-            animation: sigo-ticker-desplazar 75s linear infinite;
+            animation: sigo-ticker-desplazar 37.5s linear infinite; /* 2x mas rapido que el original (75s) */
         }
         .sigo-ticker-track .sigo-ticker-copia {
             padding-right: 3rem;
@@ -818,35 +856,40 @@ def normalizar_nombres(serie):
     return claves.map(forma_canonica)
 
 
-# Ticker de datos de IA (franja inferior del panel principal, ver
-# .sigo-ticker-wrap en el CSS). Solo datos de fuentes verificables
-# (Deloitte, McKinsey, MIT NANDA) -- se dejaron fuera a proposito otras
-# cifras "llamativas" encontradas en sitios agregadores/SEO (ej. "92%
-# de Fortune 500 usa OpenAI") por no venir de una fuente primaria
-# confirmable, para no arriesgar credibilidad frente a un cliente real.
-DATOS_IA_TICKER = [
-    ("Deloitte", "el 60% de los trabajadores ya tiene acceso a herramientas de IA aprobadas por su empresa, frente a menos del 40% el año anterior"),
-    ("Deloitte", "solo 1 de cada 4 organizaciones ha logrado llevar a producción al menos el 40% de sus iniciativas de IA"),
-    ("McKinsey", "el 88% de las organizaciones ya usa IA en al menos una función del negocio"),
-    ("McKinsey", "el uso de IA generativa en las empresas pasó de 33% en 2024 a 72% en 2026"),
-    ("McKinsey", "por cada dólar invertido en tecnología de IA, se recomienda invertir 5 dólares en las personas"),
-    ("MIT NANDA", "solo el 5% de las organizaciones logra traducir sus pilotos de IA en impacto financiero real"),
-    ("Deloitte España", "el 85% de las empresas españolas prevé aumentar su inversión en IA en el próximo año fiscal"),
+# Ticker del proceso "¿Como llegamos hasta aca?" (franja inferior del
+# panel principal, ver .sigo-ticker-wrap en el CSS). Antes mostraba
+# datos de adopcion de IA en empresas (Deloitte/McKinsey/MIT NANDA);
+# 24-ago-2026 se reemplazo por el resumen de los 7 pasos con los que se
+# construyo la base -- el mismo contenido que antes vivia solo en la
+# pestaña "Evaluador IA", ahora visible desde cualquier pestaña.
+DATOS_PROCESO_TICKER = [
+    ("1. Descarga histórica", "expedientes ITS evaluados por SENACE a lo largo de los años, con miles de observaciones reales"),
+    ("2. Discriminación y depuración", "cada observación clasificada por especialidad, descartando registros incompletos o duplicados"),
+    ("3. Extracción y estructuración", "información estructurada en una base tabular: expediente, empresa, especialidad, fundamento y observación"),
+    ("4. Normalización", "texto normalizado y vectores de significado (IA) generados para habilitar búsqueda por texto y por significado"),
+    ("5. Base de datos limpia y clasificada", "20 515 observaciones históricas, consultables en segundos desde la pestaña de Búsqueda"),
+    ("6. Análisis de tendencias", "se identificó qué TIPO de hallazgo es más frecuente en la historia de SENACE"),
+    ("7. Análisis de severidad", "cada observación clasificada como DE FONDO o DE FORMA, cruzado por especialidad"),
 ]
 
 
-def _render_ticker_ia():
-    """Franja inferior del panel principal con datos reales sobre
-    adopcion de IA en empresas grandes, en scroll horizontal continuo
-    (CSS puro, sin JS) -- se llama una sola vez al final del script,
-    fuera del if/elif de paginas, para que aparezca en las 4 pestañas."""
+def _render_ticker_proceso():
+    """Franja inferior del panel principal con el resumen de como se
+    construyo la base (los mismos 7 pasos de la pestaña "Evaluador IA"),
+    en scroll horizontal continuo (CSS puro, sin JS) -- se llama una
+    sola vez al final del script, fuera del if/elif de paginas, para
+    que aparezca en las 5 pestañas."""
     item_html = "".join(
-        f'<span class="sigo-ticker-item"><b>{fuente}:</b> {dato}</span><span class="sigo-ticker-sep">•</span>'
-        for fuente, dato in DATOS_IA_TICKER
+        f'<span class="sigo-ticker-item"><b>{titulo}:</b> {dato}</span><span class="sigo-ticker-sep">•</span>'
+        for titulo, dato in DATOS_PROCESO_TICKER
     )
+    # En "conversa" hay ademas un st.chat_input fijo al fondo -- se sube
+    # el ticker con una clase extra para que no quede tapado (ver CSS
+    # ".sigo-ticker-wrap.sigo-ticker-sobre-chat").
+    clase_extra = " sigo-ticker-sobre-chat" if st.session_state.sigo_pagina == "conversa" else ""
     st.markdown(
         f"""
-        <div class="sigo-ticker-wrap">
+        <div class="sigo-ticker-wrap{clase_extra}">
             <div class="sigo-ticker-track">
                 <span class="sigo-ticker-copia">{item_html}</span>
                 <span class="sigo-ticker-copia">{item_html}</span>
@@ -969,6 +1012,115 @@ def cargar_objetivos_its(_supabase):
         return None
 
     return pd.DataFrame(filas)
+
+
+# ---------------------------------------------------------
+# Chat "Evaluador IA" (Gemini + function calling sobre Supabase)
+# ---------------------------------------------------------
+# Version verificada probando en vivo el 24-ago-2026 (mas confiable que la
+# doc: "gemini-2.5-flash" ya daba 404 "no longer available to new users",
+# y "gemini-3.7-flash" -el que la doc marcaba como ultimo estable- daba 503
+# "high demand" de forma repetida). "gemini-3.6-flash" es el que la propia
+# API recomienda en el mensaje de error del 404, y respondio bien en las
+# pruebas. Si vuelve a fallar, revisar cual es el modelo Flash gratis
+# vigente en ese momento (cambian seguido).
+MODELO_GEMINI = "gemini-3.6-flash"
+
+
+@st.cache_resource(show_spinner=False)
+def conectar_gemini():
+    api_key = _leer_secreto("GEMINI_API_KEY")
+    if not api_key:
+        return None
+    return genai.Client(api_key=api_key)
+
+
+# Las funciones de abajo son las UNICAS herramientas que el modelo puede
+# invocar -- nunca ejecuta SQL libre. Ambas son de solo lectura, usan el
+# mismo cliente "supabase" (anon key, RLS de solo-lectura) y el mismo
+# camino ya auditado de la pestaña de Busqueda (generar_embedding +
+# buscar_hibrido), y devuelven texto resumido y acotado (no el JSON crudo)
+# para no gastar de mas la cuota gratis de tokens de Gemini.
+
+def consultar_estadisticas_observaciones(especialidad: str = "", empresa: str = "", coordinador: str = "") -> str:
+    """Cuenta cuantas observaciones historicas de SENACE hay en la base,
+    opcionalmente filtrando por especialidad, empresa o evaluador. Usar
+    para preguntas tipo "cuantas observaciones tiene la empresa X" o
+    "cuantas observaciones de especialidad Y hay en total".
+
+    Args:
+        especialidad: Especialidad exacta (Fisico, Biologico, Social, Legal,
+            Descripcion de Proyectos, Sig, Esp. Legal, entre otras). Vacio
+            para no filtrar por especialidad.
+        empresa: Nombre (o parte del nombre) de la empresa/titular minero.
+            Vacio para no filtrar por empresa.
+        coordinador: Nombre (o parte del nombre) del evaluador de SENACE.
+            Vacio para no filtrar por evaluador.
+
+    Returns:
+        Texto con el total de observaciones que cumplen el filtro pedido.
+    """
+    consulta = supabase.table("observaciones").select("id", count="exact")
+    if especialidad:
+        # ilike + quitar_tildes (no un match exacto): la base guarda las
+        # especialidades SIN tilde (ej. "Fisico"), pero el modelo a veces
+        # las escribe con tilde ("Físico") -- sin esto, fallaba en el
+        # primer intento y gastaba varias llamadas de mas reintentando
+        # variantes (24-ago-2026, confirmado probando en vivo: 6 llamadas
+        # a herramientas para UNA sola pregunta, agotando la cuota
+        # gratis de Gemini de 5 solicitudes/minuto).
+        consulta = consulta.ilike("especialidad_final", quitar_tildes(especialidad))
+    if empresa:
+        consulta = consulta.ilike("empresa", f"%{empresa}%")
+    if coordinador:
+        consulta = consulta.ilike("coordinador", f"%{coordinador}%")
+    resultado = consulta.execute()
+    total = resultado.count or 0
+
+    filtros = [f"{nombre}={valor}" for nombre, valor in
+               [("especialidad", especialidad), ("empresa", empresa), ("coordinador", coordinador)] if valor]
+    if filtros:
+        return f"{total} observaciones encontradas con filtro ({', '.join(filtros)})."
+    return f"{total} observaciones en total en la base de datos."
+
+
+def buscar_observaciones_relacionadas(tema: str, especialidad: str = "", top_k: int = 5) -> str:
+    """Busca observaciones historicas de SENACE relacionadas a un tema o
+    palabra clave (busqueda hibrida: texto exacto + significado). Usar para
+    preguntas tipo "que dice SENACE sobre bofedales" o "que observaciones
+    hay de calidad de aire".
+
+    Args:
+        tema: Tema, palabra o frase a buscar (ej. "bofedal impacto",
+            "calidad de aire").
+        especialidad: Especialidad exacta para acotar la busqueda (opcional,
+            vacio para no filtrar).
+        top_k: Cantidad de resultados a traer, entre 1 y 10.
+
+    Returns:
+        Texto con un resumen de cada resultado (expediente, especialidad,
+        fragmento de la observacion).
+    """
+    top_k = max(1, min(10, top_k))
+    vector_consulta = generar_embedding(tema)
+    resultado = supabase.rpc("buscar_hibrido", {
+        "consulta_texto": tema,
+        "consulta_vector": vector_a_texto_postgres(vector_consulta),
+        "filtro_especialidad": especialidad or None,
+        "cantidad": top_k,
+    }).execute()
+    filas = resultado.data or []
+    if not filas:
+        return f'No se encontraron observaciones relacionadas a "{tema}".'
+
+    resumen = [f'Resultados para "{tema}" ({len(filas)}):']
+    for i, fila in enumerate(filas, 1):
+        obs = (fila.get("observacion") or "")[:280]
+        resumen.append(
+            f"{i}. Expediente {fila.get('expediente', '?')} | "
+            f"{fila.get('especialidad_final', 'Sin clasificar')} | {obs}"
+        )
+    return "\n".join(resumen)
 
 
 TEMAS_JSON_PATH = "temas_recurrentes.json"
@@ -1109,13 +1261,14 @@ ES_MOVIL = _detectar_movil()
 # etiqueta_corta se usa solo en la barra de celular (4 botones en una
 # fila angosta no entran con el nombre completo de escritorio).
 PAGINAS_SIGO = [
+    ("conversa", ":material/forum:", "Conversa con SIGO", "Chat"),
     ("busqueda", ":material/search:", "Búsqueda de Observaciones", "Buscar"),
     ("consulta", ":material/table_view:", "Consulta General", "Consulta"),
     ("dashboard", ":material/bar_chart:", "Dashboard & Métricas", "Panel"),
     ("evaluador", ":material/psychology:", "Evaluador IA", "Evaluar"),
 ]
 if "sigo_pagina" not in st.session_state:
-    st.session_state.sigo_pagina = "busqueda"
+    st.session_state.sigo_pagina = "conversa"
 
 if ES_MOVIL:
     # Barra horizontal de navegacion, arriba del todo del panel
@@ -1242,6 +1395,10 @@ df_all, col_obs = datos
 # repetido en cada pestaña que habia antes.
 # ---------------------------------------------------------
 _TEXTOS_TOPBAR = {
+    "conversa": (
+        "Conversa con SIGO",
+        "Chat sobre la base histórica de observaciones SENACE",
+    ),
     "busqueda": (
         "Búsqueda de Observaciones",
         "Buscador temático y por significado (IA) sobre el historial de observaciones SENACE",
@@ -1287,9 +1444,78 @@ st.markdown(
 )
 
 # ---------------------------------------------------------
+# PÁGINA: CONVERSA CON SIGO (chat con Gemini sobre la base historica)
+# ---------------------------------------------------------
+if st.session_state.sigo_pagina == "conversa":
+    cliente_gemini = conectar_gemini()
+    if cliente_gemini is None:
+        st.caption(
+            "El chat todavía no está disponible en este entorno (falta configurar "
+            "GEMINI_API_KEY). Se consigue gratis, sin tarjeta, en "
+            "aistudio.google.com/apikey."
+        )
+    else:
+        if "sigo_chat_gemini_sesion" not in st.session_state:
+            st.session_state["sigo_chat_gemini_sesion"] = cliente_gemini.chats.create(
+                model=MODELO_GEMINI,
+                config=genai_types.GenerateContentConfig(
+                    system_instruction=(
+                        "Eres el asistente de SIGO, la herramienta de control de calidad de "
+                        "Sugle S.A.C. Respondes preguntas sobre la base histórica de "
+                        "observaciones que SENACE ha hecho a estudios ITS de proyectos "
+                        "mineros en Perú. Cuando la pregunta pida un dato concreto (cantidad, "
+                        "ejemplos, contenido de observaciones), usa SIEMPRE las herramientas "
+                        "disponibles para consultar la base real -- nunca inventes cifras ni "
+                        "observaciones que no vengan de una herramienta. Las especialidades "
+                        "que existen en la base son: Fisico, Biologico, Social, Legal, "
+                        "Descripcion de Proyectos, Sig, entre otras. Responde en español, de "
+                        "forma breve y concreta."
+                    ),
+                    tools=[consultar_estadisticas_observaciones, buscar_observaciones_relacionadas],
+                ),
+            )
+        if "sigo_chat_gemini_historial" not in st.session_state:
+            st.session_state["sigo_chat_gemini_historial"] = []
+
+        # Contenedor con borde visible (24-ago-2026, pedido explicito:
+        # "resalta mas el cuadro donde se chatea") -- sin esto los
+        # mensajes flotaban sueltos sobre el fondo de la app, sin ningun
+        # limite visual que marcara "esto es el chat".
+        contenedor_chat = st.container(height=420, border=True)
+        with contenedor_chat:
+            for mensaje in st.session_state["sigo_chat_gemini_historial"]:
+                with st.chat_message(mensaje["rol"]):
+                    st.markdown(mensaje["texto"])
+
+        pregunta = st.chat_input("Pregúntale algo a SIGO sobre la base histórica...")
+        if pregunta:
+            st.session_state["sigo_chat_gemini_historial"].append({"rol": "user", "texto": pregunta})
+            with contenedor_chat:
+                with st.chat_message("user"):
+                    st.markdown(pregunta)
+
+                with st.chat_message("assistant"):
+                    with st.spinner("Consultando la base..."):
+                        try:
+                            respuesta = st.session_state["sigo_chat_gemini_sesion"].send_message(pregunta)
+                            texto_respuesta = respuesta.text or "No pude generar una respuesta."
+                        except Exception as e:
+                            texto_respuesta = (
+                                "No se pudo consultar a Gemini en este momento (puede ser el "
+                                f"límite del plan gratis). Detalle técnico: `{e}`"
+                            )
+                    st.markdown(texto_respuesta)
+            st.session_state["sigo_chat_gemini_historial"].append({"rol": "assistant", "texto": texto_respuesta})
+
+        st.caption(
+            ":material/info: Corre sobre el plan gratis de Gemini (límite de solicitudes por "
+            "minuto/día) -- si tarda o falla, espera unos segundos y vuelve a intentar."
+        )
+
+# ---------------------------------------------------------
 # PÁGINA: BÚSQUEDA HÍBRIDA (Supabase + IA)
 # ---------------------------------------------------------
-if st.session_state.sigo_pagina == "busqueda":
+elif st.session_state.sigo_pagina == "busqueda":
 
     # Opciones del desplegable de especialidad, sacadas directamente de
     # df_all (ya cargado desde Supabase mas arriba) -- asi la lista
@@ -1957,50 +2183,6 @@ elif st.session_state.sigo_pagina == "evaluador":
         "que aprendió de miles de observaciones reales de SENACE."
     )
 
-    st.markdown("---")
-    st.subheader("¿Cómo llegamos hasta acá?")
-
-    pasos = [
-        ("1", "Descarga histórica",
-         "Se recopilaron los expedientes ITS evaluados por SENACE a lo largo de los años, "
-         "con miles de observaciones reales emitidas por especialistas."),
-        ("2", "Discriminación y depuración",
-         "Cada observación se clasificó por especialidad (Físico, Biológico, Social, Legal, "
-         "Descripción de Proyectos, entre otras), descartando registros incompletos o duplicados."),
-        ("3", "Extracción y estructuración",
-         "La información se extrajo a una base tabular (Excel → base de datos), conservando "
-         "expediente, empresa, especialidad, fundamento y observación de cada hallazgo."),
-        ("4", "Normalización",
-         "El texto se normalizó y se generaron vectores de significado (IA) para cada "
-         "observación, habilitando búsquedas por texto exacto y por significado."),
-        ("5", "Base de datos limpia y clasificada",
-         "Resultado: 20 515 observaciones históricas, consultables en segundos desde la "
-         "pestaña de Búsqueda."),
-        ("6", "Análisis de tendencias",
-         "Sobre el 100% de la base se identificó qué TIPO de hallazgo es más frecuente en la "
-         "historia de SENACE: falta de sustento técnico, aclaración, corrección, contradicción "
-         "interna, omisión de análisis, entre otros."),
-        ("7", "Análisis de severidad",
-         "Cada observación histórica se clasificó como DE FONDO (crítica: impactos, cuerpos de "
-         "agua, especies protegidas, viabilidad del ITS) o DE FORMA (leyenda, escala, "
-         "denominación), cruzado por especialidad."),
-    ]
-
-    for numero, titulo, texto in pasos:
-        st.markdown(f"""
-        <div style="display:flex; gap:16px; margin-bottom:18px; align-items:flex-start;">
-            <div style="background-color:#3F1840; color:#E5DBEB; min-width:36px; height:36px;
-                        border-radius:50%; display:flex; align-items:center; justify-content:center;
-                        font-weight:bold; font-size:16px; flex-shrink:0;">{numero}</div>
-            <div>
-                <div style="font-weight:bold; color:#3F1840; font-size:16px;">{titulo}</div>
-                <div style="color:#333; font-size:14px;">{texto}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("---")
-
     st.markdown("""
     <div style="background-color:#E5DBEB; border-left:5px solid #A02671; padding:18px 22px;
                 border-radius:6px; margin-bottom:20px;">
@@ -2019,16 +2201,18 @@ elif st.session_state.sigo_pagina == "evaluador":
 
     st.info(
         "La carga de documentos y el análisis automático todavía no están activos en esta "
-        "pestaña. Esta vista explica el proceso completo que los sustentará.",
+        "pestaña. Mientras tanto, ve a \"Conversa con SIGO\" en el menú para preguntarle "
+        "sobre la base histórica de observaciones. Más abajo puedes ver todo el proceso "
+        "con el que se construyó esta base.",
         icon=":material/construction:",
     )
 
 # ---------------------------------------------------------
-# Ticker de datos de IA -- fuera del if/elif de arriba a proposito,
-# para que se renderice al final de CUALQUIER pagina (siempre es lo
-# ultimo que se dibuja, pegado abajo del panel principal). Se salta
-# del todo en celular (ES_MOVIL): es decorativo, y en una pantalla
-# chica quita espacio util que en escritorio sobra.
+# Ticker del proceso "¿Como llegamos hasta aca?" -- fuera del if/elif
+# de arriba a proposito, para que se renderice al final de CUALQUIER
+# pagina (siempre es lo ultimo que se dibuja, pegado abajo del panel
+# principal). Se salta del todo en celular (ES_MOVIL): es decorativo,
+# y en una pantalla chica quita espacio util que en escritorio sobra.
 # ---------------------------------------------------------
 if not ES_MOVIL:
-    _render_ticker_ia()
+    _render_ticker_proceso()
