@@ -69,6 +69,7 @@ from supabase import create_client, ClientOptions
 from postgrest.exceptions import APIError
 from google import genai
 from google.genai import types as genai_types
+from google.genai import errors as genai_errors
 
 # ---------------------------------------------------------
 # Configuracion general
@@ -1035,6 +1036,52 @@ def conectar_gemini():
     return genai.Client(api_key=api_key)
 
 
+def mensaje_error_gemini(e):
+    """Traduce una excepcion de la API de Gemini a un mensaje claro para
+    el chat -- antes se mostraba el error tal cual (un diccionario tecnico
+    larguisimo, 24-ago-2026: confirmado en pantalla que se veia asi de
+    feo). Distingue el caso mas probable en el tier gratis: la cuota
+    DIARIA (no por minuto) de gemini-3.6-flash resulto ser de solo 20
+    solicitudes/dia -- bastante mas baja de lo que sugeria la
+    documentacion, y facil de agotar en una sesion de prueba."""
+    if isinstance(e, genai_errors.APIError):
+        detalles = getattr(e, "details", None) or {}
+        quota_id = ""
+        try:
+            # No se asume una posicion fija dentro de la lista "details"
+            # (el orden de Help/QuotaFailure/RetryInfo podria cambiar) --
+            # se busca el bloque que efectivamente tenga "violations".
+            for bloque in detalles.get("error", {}).get("details", []):
+                violaciones = bloque.get("violations")
+                if violaciones:
+                    quota_id = violaciones[0].get("quotaId", "")
+                    break
+        except (AttributeError, TypeError):
+            pass
+
+        if e.code == 429 and "PerDay" in quota_id:
+            return (
+                ":material/schedule: SIGO ya usó todas las conversaciones gratis de "
+                "hoy con Gemini (el plan gratis tiene un límite diario). Vuelve a "
+                "intentar mañana, o pide que se configure un plan con más cuota."
+            )
+        if e.code == 429:
+            return (
+                ":material/schedule: Demasiadas preguntas seguidas -- el plan gratis "
+                "de Gemini tiene un límite por minuto. Espera unos segundos y vuelve "
+                "a intentar."
+            )
+        if e.code == 503:
+            return (
+                ":material/cloud_off: El modelo de IA está saturado en este momento "
+                "(alta demanda del lado de Google). Espera unos segundos y vuelve a "
+                "intentar."
+            )
+        return f":material/error: No se pudo consultar a Gemini ({e.status or e.code}). Intenta de nuevo en un momento."
+
+    return "No se pudo consultar a Gemini en este momento. Intenta de nuevo en un momento."
+
+
 # Las funciones de abajo son las UNICAS herramientas que el modelo puede
 # invocar -- nunca ejecuta SQL libre. Ambas son de solo lectura, usan el
 # mismo cliente "supabase" (anon key, RLS de solo-lectura) y el mismo
@@ -1500,10 +1547,7 @@ if st.session_state.sigo_pagina == "conversa":
                             respuesta = st.session_state["sigo_chat_gemini_sesion"].send_message(pregunta)
                             texto_respuesta = respuesta.text or "No pude generar una respuesta."
                         except Exception as e:
-                            texto_respuesta = (
-                                "No se pudo consultar a Gemini en este momento (puede ser el "
-                                f"límite del plan gratis). Detalle técnico: `{e}`"
-                            )
+                            texto_respuesta = mensaje_error_gemini(e)
                     st.markdown(texto_respuesta)
             st.session_state["sigo_chat_gemini_historial"].append({"rol": "assistant", "texto": texto_respuesta})
 
