@@ -758,6 +758,33 @@ def formatear_parrafos(texto):
     return t.strip()
 
 
+def etiqueta_relevancia(score_texto, score_semantico):
+    """Traduce los puntajes tecnicos de la busqueda hibrida (similitud
+    coseno, ts_rank, RRF) a UNA sola etiqueta simple, pensada para
+    alguien sin conocimientos de IA (24-ago-2026: antes se mostraban
+    los 3 numeros crudos, ej. "relevancia semantica: 0.564", que no le
+    decian nada a nadie fuera de contexto tecnico).
+
+    No se muestra el coseno ni el RRF tal cual porque ninguno de los
+    dos es un porcentaje interpretable: el coseno de estos modelos
+    tiene un "piso" alto incluso para texto NO relacionado (por eso
+    buscar_hibrido ya exige un minimo de 0.55 antes de mostrar un
+    resultado puramente semantico -- ver esa funcion en Supabase), y el
+    RRF es una escala de orden/ranking, no de confianza.
+
+    El porcentaje que se muestra aca es solo una referencia intuitiva
+    (reescala el rango 0.55-0.85 observado en pruebas a 50-99%), no una
+    probabilidad estadistica real."""
+    if score_texto:
+        return ":material/search: Coincide con el texto exacto de tu búsqueda"
+    if score_semantico is not None:
+        porcentaje = round(50 + (score_semantico - 0.55) / (0.85 - 0.55) * 49)
+        porcentaje = max(50, min(99, porcentaje))
+        nivel = "Alta" if score_semantico >= 0.65 else "Media"
+        return f":material/psychology: Relevancia por significado: {nivel} (~{porcentaje}%)"
+    return None
+
+
 def quitar_tildes(texto):
     """Quita tildes/diacríticos para poder comparar 'Iban' y 'Ibán' como el mismo nombre."""
     return ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
@@ -1453,7 +1480,6 @@ if st.session_state.sigo_pagina == "busqueda":
 
                     score_texto = fila.get("score_texto")
                     score_semantico = fila.get("score_semantico")
-                    score_combinado = fila.get("score_combinado")
 
                     titulo_resultado = f"Resultado #{i} | Expediente: {exp}" + (f" | Evaluador: {coordinador}" if coordinador else "")
                     with st.expander(titulo_resultado, icon=":material/push_pin:"):
@@ -1464,12 +1490,9 @@ if st.session_state.sigo_pagina == "busqueda":
                             etiquetas.append(f":material/person: {coordinador}")
                         if item:
                             etiquetas.append(f":material/location_on: {item}")
-                        if score_texto:
-                            etiquetas.append(f":material/text_fields: relevancia texto: {score_texto:.3f}")
-                        if score_semantico is not None:
-                            etiquetas.append(f":material/psychology: relevancia semántica: {score_semantico:.3f}")
-                        if score_combinado is not None:
-                            etiquetas.append(f":material/track_changes: relevancia combinada: {score_combinado:.3f}")
+                        _etiqueta_rel = etiqueta_relevancia(score_texto, score_semantico)
+                        if _etiqueta_rel:
+                            etiquetas.append(_etiqueta_rel)
                         if etiquetas:
                             st.caption(" &nbsp;|&nbsp; ".join(etiquetas))
 
