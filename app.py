@@ -1291,22 +1291,31 @@ st.markdown(
 # ---------------------------------------------------------
 if st.session_state.sigo_pagina == "busqueda":
 
-    # Opciones de los desplegables de especialidad/evaluador, sacadas
-    # directamente de df_all (ya cargado desde Supabase mas arriba) --
-    # asi la lista siempre refleja los valores reales de la base, sin
-    # mantenerla a mano. "Sin Asignar" se excluye del de evaluador
-    # porque no es un evaluador real (mismo criterio que el resto del
-    # Dashboard, ver mask_asignado en limpiar_dataframe()).
+    # Opciones del desplegable de especialidad, sacadas directamente de
+    # df_all (ya cargado desde Supabase mas arriba) -- asi la lista
+    # siempre refleja los valores reales de la base, sin mantenerla a
+    # mano.
     OPCION_TODAS_ESP = "(Todas)"
-    OPCION_TODOS_EVAL = "(Todos)"
+    OPCION_TODOS_OBJ = "(Todos)"
     opciones_especialidad = [OPCION_TODAS_ESP] + (
         sorted(df_all['Especialidad Final'].dropna().unique().tolist())
         if 'Especialidad Final' in df_all.columns else []
     )
-    opciones_evaluador = [OPCION_TODOS_EVAL] + (
-        sorted(df_all.loc[df_all['Coordinador'] != 'Sin Asignar', 'Coordinador'].dropna().unique().tolist())
-        if 'Coordinador' in df_all.columns else []
-    )
+    # Categorias de objetivos_its (24-ago-2026, clasificacion por
+    # componente de la operacion minera -- ver migracion
+    # clasificar_objetivos_its_por_componente en Supabase). Lista fija
+    # en vez de sacarla de la base: son las mismas 15 categorias que
+    # define esa clasificacion, no van a cambiar salvo que se reclasifique.
+    CATEGORIAS_OBJETIVO_ITS = [
+        "Planta de procesos", "Componentes auxiliares", "Manejo de aguas",
+        "Deposito de relaves", "Plataformas de perforacion / exploracion",
+        "Accesos / vias", "Mina / tajo / labores subterraneas",
+        "Deposito de desmonte / material esteril", "Energia electrica",
+        "Cronograma / plazo", "Monitoreo ambiental", "Residuos solidos",
+        "Canteras / material de prestamo", "Precision / aclaracion (sin cambio fisico)",
+        "Otros",
+    ]
+    opciones_objetivo = [OPCION_TODOS_OBJ] + CATEGORIAS_OBJETIVO_ITS
 
     def _sigo_set_query(texto):
         """Callback de los chips de accesos rapidos/busquedas recientes:
@@ -1339,9 +1348,9 @@ if st.session_state.sigo_pagina == "busqueda":
                 options=opciones_especialidad,
             )
         with col3:
-            evaluador_filtro = st.selectbox(
-                "Filtrar por evaluador (opcional):",
-                options=opciones_evaluador,
+            objetivo_filtro = st.selectbox(
+                "Filtrar por Objetivo del ITS (opcional):",
+                options=opciones_objetivo,
             )
 
         buscar = st.form_submit_button(
@@ -1352,7 +1361,7 @@ if st.session_state.sigo_pagina == "busqueda":
         )
 
     especialidad_valor = None if especialidad_filtro == OPCION_TODAS_ESP else especialidad_filtro
-    evaluador_valor = None if evaluador_filtro == OPCION_TODOS_EVAL else evaluador_filtro
+    objetivo_valor = None if objetivo_filtro == OPCION_TODOS_OBJ else objetivo_filtro
 
     if st.session_state.pop("sigo_auto_buscar", False):
         buscar = True
@@ -1422,7 +1431,7 @@ if st.session_state.sigo_pagina == "busqueda":
                         "consulta_vector": vector_a_texto_postgres(vector_consulta),
                         "filtro_especialidad": especialidad_valor,
                         "cantidad": top_k,
-                        "filtro_evaluador": evaluador_valor,
+                        "filtro_categoria_objetivo": objetivo_valor,
                     }).execute()
                     filas = resultado.data or []
                 except APIError as e:
@@ -1455,7 +1464,7 @@ if st.session_state.sigo_pagina == "busqueda":
                     conteo = supabase.rpc("contar_busqueda", {
                         "consulta_texto": query,
                         "filtro_especialidad": especialidad_valor,
-                        "filtro_evaluador": evaluador_valor,
+                        "filtro_categoria_objetivo": objetivo_valor,
                     }).execute()
                     desglose_especialidad = conteo.data or []
                     total_encontrados = sum(f["cantidad"] for f in desglose_especialidad)
