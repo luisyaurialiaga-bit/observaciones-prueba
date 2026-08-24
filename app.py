@@ -942,6 +942,35 @@ def cargar_datos_supabase(_supabase):
     return limpiar_dataframe(df)
 
 
+@st.cache_data(show_spinner=False, ttl=600)
+def cargar_objetivos_its(_supabase):
+    """Trae expediente + categorias de la tabla objetivos_its (24-ago-2026,
+    clasificacion por componente de la operacion minera que modifica
+    cada objetivo -- ver migracion clasificar_objetivos_its_por_componente
+    en Supabase). Solo se usa para el grafico del Dashboard, por eso no
+    trae la columna 'objetivo' completa (mas liviano)."""
+    filas = []
+    inicio = 0
+    LOTE = 1000
+    while True:
+        resp = (
+            _supabase.table("objetivos_its")
+            .select("expediente,categorias")
+            .range(inicio, inicio + LOTE - 1)
+            .execute()
+        )
+        lote = resp.data or []
+        filas.extend(lote)
+        if len(lote) < LOTE:
+            break
+        inicio += LOTE
+
+    if not filas:
+        return None
+
+    return pd.DataFrame(filas)
+
+
 TEMAS_JSON_PATH = "temas_recurrentes.json"
 
 
@@ -1465,6 +1494,8 @@ if st.session_state.sigo_pagina == "busqueda":
                     )
                     st.markdown(f"Por especialidad: {texto_desglose}")
 
+                st.caption(":material/speed: Relevancia por significado — 0% muy bajo, 100% muy alto")
+
                 for i, fila in enumerate(filas, 1):
                     exp = fila.get("expediente") or "Sin información"
                     empresa = fila.get("empresa") or "Sin información"
@@ -1810,6 +1841,38 @@ elif st.session_state.sigo_pagina == "dashboard":
             "Cada observación puede pedir varias cosas a la vez (sustento, corrección, aclaración...), "
             "por eso una misma observación puede contar en más de una categoría y los porcentajes "
             "suman más de 100%. No es un error."
+        )
+
+    st.markdown("---")
+    st.markdown("**Objetivos de los ITS por componente modificado**")
+    df_objetivos = cargar_objetivos_its(supabase)
+    if df_objetivos is None:
+        st.caption(
+            "Todavía no se cargó la tabla objetivos_its. Corre `python cargar_objetivos_its.py` "
+            "para subir la matriz de objetivos a Supabase."
+        )
+    else:
+        df_obj_cat = df_objetivos.explode("categorias")
+        conteo_obj_cat = df_obj_cat["categorias"].value_counts().reset_index()
+        conteo_obj_cat.columns = ["Categoria", "Cantidad"]
+        fig_obj = px.bar(
+            conteo_obj_cat.sort_values("Cantidad"),
+            x="Cantidad",
+            y="Categoria",
+            orientation="h",
+            color="Cantidad",
+            color_continuous_scale="Purples",
+        )
+        fig_obj.update_layout(showlegend=False, yaxis_title="Categoría", xaxis_title="Cantidad de objetivos", height=450)
+        aplicar_fondo_marca(fig_obj)
+        st.plotly_chart(fig_obj, use_container_width=True)
+        st.caption(
+            f"Basado en {df_objetivos['expediente'].nunique():,} expedientes y "
+            f"{len(df_objetivos):,} objetivos. Un mismo objetivo puede modificar más de un "
+            "componente a la vez (ej. una planta de tratamiento de aguas cuenta tanto en "
+            "\"Manejo de aguas\" como en \"Planta de procesos\"), por eso la suma supera el "
+            "total de objetivos. \"Otros\" agrupa objetivos muy específicos sin un patrón "
+            "temático claro (viveros, laboratorios, sistemas de dosificación química, etc.)."
         )
 
     col_chart7, col_chart8 = st.columns(2)
