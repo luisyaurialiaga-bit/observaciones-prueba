@@ -1,6 +1,13 @@
 streamlit>=1.60.0
 supabase
-fastembed
+# Version fija a proposito (24-ago-2026): fastembed cambio su forma de
+# calcular el vector de una frase entre versiones (CLS -> mean pooling).
+# Sin fijar esto, un redeploy futuro puede instalar una version distinta
+# a la que se uso para generar los embeddings ya guardados en Supabase
+# (ver regenerar_embeddings.py), y la busqueda semantica se desalinea en
+# silencio. Si algun dia se sube esta version a proposito, hay que
+# volver a correr regenerar_embeddings.py despues.
+fastembed==0.8.0
 pandas
 openpyxl
 plotly

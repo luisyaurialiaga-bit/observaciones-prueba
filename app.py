@@ -21,6 +21,17 @@ Antes de desplegar (Streamlit Community Cloud):
 
         SUPABASE_URL = "https://jtujaaqnxvzipgdmkirr.supabase.co"
         SUPABASE_ANON_KEY = "el JWT que empieza con eyJhbGci..."
+        HF_TOKEN = "el token de Hugging Face que empieza con hf_..."
+
+    HF_TOKEN (24-ago-2026): token de solo lectura de huggingface.co
+    (Settings > Access Tokens, tipo "Read", gratis, sin tarjeta). Se usa
+    para generar el vector de cada busqueda via la API de Hugging Face
+    en vez de cargar el modelo de embeddings (~520MB) dentro de la app
+    -- el plan gratis de Streamlit Cloud tiene ~1GB de RAM, y cargar el
+    modelo localmente dejaba la app al borde del limite (medido: ~970MB
+    de pico), causando reinicios frecuentes. Si HF_TOKEN no esta
+    configurado, la app sigue funcionando pero vuelve a cargar el
+    modelo local (mas lento y pesado) -- ver generar_embedding().
 
     Archivos que deben ir junto a este app.py en el repo:
         - logo-sugle.png
@@ -40,9 +51,11 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import base64
+import json
 import os
 import re
 import unicodedata
+import urllib.request
 from supabase import create_client, ClientOptions
 from postgrest.exceptions import APIError
 
@@ -639,10 +652,22 @@ MODELO_EMBEDDING = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 # ---------------------------------------------------------
 # Conexion a Supabase + modelo de embeddings (para la pestaña Busqueda)
 # ---------------------------------------------------------
+def _leer_secreto(nombre):
+    """st.secrets (secrets.toml) es el mecanismo de Streamlit Cloud. En
+    otros hosts (ej. Hugging Face Spaces) las credenciales llegan como
+    variables de entorno en vez de un secrets.toml -- se prueba
+    st.secrets primero y se cae a os.environ si no esta disponible, asi
+    el mismo codigo sirve para cualquiera de los dos sin cambios."""
+    try:
+        return st.secrets[nombre]
+    except (FileNotFoundError, KeyError):
+        return os.environ.get(nombre)
+
+
 @st.cache_resource(show_spinner="Conectando a la base de datos...")
 def conectar_supabase():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_ANON_KEY"]
+    url = _leer_secreto("SUPABASE_URL")
+    key = _leer_secreto("SUPABASE_ANON_KEY")
     # Timeout explicito (20s por pedido): sin esto, si Supabase esta
     # lento o "dormido" (plan gratuito se pausa por inactividad), la
     # app se queda con el spinner de carga trabado indefinidamente en
@@ -651,10 +676,49 @@ def conectar_supabase():
     return create_client(url, key, options=opciones)
 
 
+HF_INFERENCE_URL = (
+    f"https://router.huggingface.co/hf-inference/models/{MODELO_EMBEDDING}/pipeline/feature-extraction"
+)
+
+
 @st.cache_resource(show_spinner="Cargando el modelo de busqueda semantica (primera vez tarda un poco)...")
 def cargar_modelo_embeddings():
     from fastembed import TextEmbedding
     return TextEmbedding(model_name=MODELO_EMBEDDING)
+
+
+def generar_embedding(texto):
+    """Genera el vector de significado de una consulta de busqueda.
+
+    Por defecto llama a la API gratuita de Hugging Face (mismo modelo,
+    mismo mean pooling que los vectores ya guardados en Supabase --
+    verificado 24-ago-2026, similitud 0.999999 contra el modelo local)
+    en vez de cargar el modelo completo (~520MB de RAM) dentro de la
+    app: el plan gratis de Streamlit Cloud tiene ~1GB, y cargar el
+    modelo localmente deja la app al borde del limite (medido: ~970MB
+    de pico con los datos + el modelo cargados a la vez), causando
+    reinicios frecuentes por falta de memoria.
+
+    Si la API no esta disponible (sin HF_TOKEN configurado, sin red, o
+    un error del lado de Hugging Face), cae al modelo local como
+    respaldo -- mas lento y pesado, pero la busqueda sigue funcionando
+    en vez de romperse del todo."""
+    token = _leer_secreto("HF_TOKEN")
+    if token:
+        try:
+            cuerpo = json.dumps({"inputs": texto}).encode("utf-8")
+            peticion = urllib.request.Request(
+                HF_INFERENCE_URL,
+                data=cuerpo,
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(peticion, timeout=15) as resp:
+                return json.loads(resp.read())
+        except Exception:
+            pass  # cae al modelo local abajo
+
+    modelo = cargar_modelo_embeddings()
+    return list(modelo.embed([texto]))[0].tolist()
 
 
 def vector_a_texto_postgres(vector):
@@ -1057,22 +1121,42 @@ else:
 if not ES_MOVIL:
     st.markdown('<div class="sigo-firma">jlya</div>', unsafe_allow_html=True)
 
-_placeholder_carga = st.empty()
-_placeholder_carga.markdown(
-    """
-    <div class="sigo-loading-overlay">
-        <div class="sigo-dot sigo-dot-1"></div>
-        <div class="sigo-dot sigo-dot-2"></div>
-        <div class="sigo-dot sigo-dot-3"></div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+# La pantalla de carga a pantalla completa solo se muestra en la
+# PRIMERA carga real de la sesion del navegador -- Streamlit re-ejecuta
+# este script completo en cada clic (buscar, cambiar de pestaña,
+# filtrar), y conectar_supabase()/cargar_datos_supabase() ya estan en
+# cache (instantaneos) en esos reruns posteriores. Sin esta bandera, el
+# overlay se disparaba en CADA interaccion, no solo al abrir la app --
+# eso era el "se borra toda la pantalla" reportado.
+_es_primera_carga = "sigo_datos_cargados" not in st.session_state
+
+if _es_primera_carga:
+    _placeholder_carga = st.empty()
+    _placeholder_carga.markdown(
+        """
+        <div class="sigo-loading-overlay">
+            <div class="sigo-dot sigo-dot-1"></div>
+            <div class="sigo-dot sigo-dot-2"></div>
+            <div class="sigo-dot sigo-dot-3"></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 try:
     supabase = conectar_supabase()
-    datos = cargar_datos_supabase(supabase)
+    if _es_primera_carga:
+        datos = cargar_datos_supabase(supabase)
+    else:
+        # No es la primera carga: en el caso normal (cache vigente) esto
+        # es instantaneo. Si el cache vencio (ttl=600) o el recurso se
+        # reinicio, se ve un spinner chico en vez del overlay completo --
+        # sigue habiendo feedback, pero sin el borrado de pantalla.
+        with st.spinner("Actualizando datos..."):
+            datos = cargar_datos_supabase(supabase)
 except Exception as e:
-    _placeholder_carga.empty()
+    if _es_primera_carga:
+        _placeholder_carga.empty()
     st.error(
         "No se pudo conectar con la base de datos (Supabase no respondió a "
         f"tiempo o hubo un error de conexión).\n\nDetalle tecnico: `{e}`",
@@ -1083,7 +1167,10 @@ except Exception as e:
         st.cache_data.clear()
         st.rerun()
     st.stop()
-_placeholder_carga.empty()
+
+if _es_primera_carga:
+    _placeholder_carga.empty()
+    st.session_state["sigo_datos_cargados"] = True
 
 if datos is None:
     st.error("No se pudo cargar información desde Supabase (la tabla respondió vacía). "
@@ -1201,7 +1288,12 @@ if st.session_state.sigo_pagina == "busqueda":
                 options=opciones_evaluador,
             )
 
-        buscar = st.form_submit_button("Buscar Observaciones", type="primary")
+        buscar = st.form_submit_button(
+            "Buscar Observaciones",
+            type="primary",
+            icon=":material/search:",
+            use_container_width=True,
+        )
 
     especialidad_valor = None if especialidad_filtro == OPCION_TODAS_ESP else especialidad_filtro
     evaluador_valor = None if evaluador_filtro == OPCION_TODOS_EVAL else evaluador_filtro
@@ -1258,8 +1350,7 @@ if st.session_state.sigo_pagina == "busqueda":
             st.session_state["sigo_recientes"] = ([query] + _recientes)[:5]
 
             with st.spinner("Convirtiendo tu búsqueda en coordenadas de significado..."):
-                modelo = cargar_modelo_embeddings()
-                vector_consulta = list(modelo.embed([query]))[0].tolist()
+                vector_consulta = generar_embedding(query)
 
             with st.spinner("Consultando la base (texto + IA)..."):
                 # buscar_hibrido puede tardar demasiado con consultas de
