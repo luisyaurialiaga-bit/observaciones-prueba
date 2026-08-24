@@ -1494,6 +1494,20 @@ st.markdown(
 # PÁGINA: CONVERSA CON SIGO (chat con Gemini sobre la base historica)
 # ---------------------------------------------------------
 if st.session_state.sigo_pagina == "conversa":
+    st.markdown(
+        "Cada estudio ambiental que se presenta ante SENACE puede recibir decenas de "
+        "observaciones técnicas. SIGO reúne el historial completo — miles de casos "
+        "reales, ya clasificados por especialidad y tema — para anticiparte a lo que "
+        "SENACE podría observar, antes de presentar el estudio.\n\n"
+        "Usa **Búsqueda de Observaciones** para encontrar el historial completo sobre "
+        "un tema puntual, **Consulta General** para explorar toda la base de datos, "
+        "**Dashboard & Métricas** para revisar tendencias y patrones — o simplemente "
+        "conversa con SIGO aquí abajo y pregúntale lo que necesites. Próximamente, "
+        "**Evaluador IA** te permitirá subir tu propio documento para que SIGO lo "
+        "revise automáticamente."
+    )
+    st.markdown("---")
+
     cliente_gemini = conectar_gemini()
     if cliente_gemini is None:
         st.caption(
